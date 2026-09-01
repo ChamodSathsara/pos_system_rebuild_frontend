@@ -26,7 +26,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useCategories,
+  useCreateBrand,
+  useCreateCategory,
   useCreateProduct,
+  useCreateTaxMaster,
   useDeleteProduct,
   useItemLogs,
   useProducts,
@@ -68,6 +71,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [historyFor, setHistoryFor] = useState<Product | null>(null);
+  const [quickCreate, setQuickCreate] = useState<"category" | "brand" | "tax" | null>(null);
 
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct();
@@ -235,7 +239,10 @@ export default function ProductsPage() {
             <Textarea rows={2} {...form.register("description")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Category</Label>
+            <div className="flex items-center justify-between">
+              <Label>Category</Label>
+              <Button type="button" variant="ghost" size="xs" onClick={() => setQuickCreate("category")}><Plus /> Create new</Button>
+            </div>
             <Select value={form.watch("categoryId") ?? ""} onValueChange={(v) => form.setValue("categoryId", v)}>
               <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
               <SelectContent>
@@ -246,7 +253,10 @@ export default function ProductsPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Brand</Label>
+            <div className="flex items-center justify-between">
+              <Label>Brand</Label>
+              <Button type="button" variant="ghost" size="xs" onClick={() => setQuickCreate("brand")}><Plus /> Create new</Button>
+            </div>
             <Select value={form.watch("brandId") ?? ""} onValueChange={(v) => form.setValue("brandId", v)}>
               <SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger>
               <SelectContent>
@@ -279,7 +289,10 @@ export default function ProductsPage() {
             <Input {...form.register("barcode")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Tax Rate</Label>
+            <div className="flex items-center justify-between">
+              <Label>Tax Rate</Label>
+              <Button type="button" variant="ghost" size="xs" onClick={() => setQuickCreate("tax")}><Plus /> Create new</Button>
+            </div>
             <Select value={form.watch("taxCode") ?? ""} onValueChange={(v) => form.setValue("taxCode", v)}>
               <SelectTrigger><SelectValue placeholder="No tax" /></SelectTrigger>
               <SelectContent>
@@ -308,6 +321,22 @@ export default function ProductsPage() {
         </div>
       </FormDialog>
 
+      <QuickCreateCategoryDialog
+        open={quickCreate === "category"}
+        onOpenChange={(open) => !open && setQuickCreate(null)}
+        onCreated={(categoryId) => form.setValue("categoryId", String(categoryId), { shouldDirty: true })}
+      />
+      <QuickCreateBrandDialog
+        open={quickCreate === "brand"}
+        onOpenChange={(open) => !open && setQuickCreate(null)}
+        onCreated={(brandId) => form.setValue("brandId", String(brandId), { shouldDirty: true })}
+      />
+      <QuickCreateTaxDialog
+        open={quickCreate === "tax"}
+        onOpenChange={(open) => !open && setQuickCreate(null)}
+        onCreated={(taxCode) => form.setValue("taxCode", taxCode, { shouldDirty: true })}
+      />
+
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
@@ -326,6 +355,83 @@ export default function ProductsPage() {
 
       <ItemHistoryDialog product={historyFor} onClose={() => setHistoryFor(null)} />
     </div>
+  );
+}
+
+function QuickCreateCategoryDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (id: number) => void }) {
+  const form = useForm({ defaultValues: { categoryName: "", description: "" } });
+  const createMutation = useCreateCategory();
+  const submit = form.handleSubmit((values) => {
+    if (!values.categoryName.trim()) {
+      form.setError("categoryName", { message: "Category name is required." });
+      return;
+    }
+    createMutation.mutate(
+      { categoryName: values.categoryName.trim(), description: values.description.trim() || null, parentCategoryId: null, isActive: true },
+      { onSuccess: (category) => { onCreated(category.categoryId); form.reset(); onOpenChange(false); } }
+    );
+  });
+
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="New Category" description="Create and select a category without leaving the product." onSubmit={submit} isSubmitting={createMutation.isPending} submitLabel="Create Category">
+      <div className="space-y-4">
+        <div className="space-y-1.5"><Label>Category Name *</Label><Input autoFocus {...form.register("categoryName")} />{form.formState.errors.categoryName && <p className="text-xs text-destructive">{form.formState.errors.categoryName.message}</p>}</div>
+        <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
+      </div>
+    </FormDialog>
+  );
+}
+
+function QuickCreateBrandDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (id: number) => void }) {
+  const form = useForm({ defaultValues: { brandName: "", description: "" } });
+  const createMutation = useCreateBrand();
+  const submit = form.handleSubmit((values) => {
+    if (!values.brandName.trim()) {
+      form.setError("brandName", { message: "Brand name is required." });
+      return;
+    }
+    createMutation.mutate(
+      { brandName: values.brandName.trim(), description: values.description.trim() || null, isActive: true },
+      { onSuccess: (brand) => { onCreated(brand.brandId); form.reset(); onOpenChange(false); } }
+    );
+  });
+
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="New Brand" description="Create and select a brand without leaving the product." onSubmit={submit} isSubmitting={createMutation.isPending} submitLabel="Create Brand">
+      <div className="space-y-4">
+        <div className="space-y-1.5"><Label>Brand Name *</Label><Input autoFocus {...form.register("brandName")} />{form.formState.errors.brandName && <p className="text-xs text-destructive">{form.formState.errors.brandName.message}</p>}</div>
+        <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
+      </div>
+    </FormDialog>
+  );
+}
+
+function QuickCreateTaxDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (code: string) => void }) {
+  const form = useForm({ defaultValues: { taxCode: "", taxName: "", percentage: "", description: "" } });
+  const createMutation = useCreateTaxMaster();
+  const submit = form.handleSubmit((values) => {
+    const percentage = Number(values.percentage);
+    let invalid = false;
+    if (!values.taxCode.trim()) { form.setError("taxCode", { message: "Tax code is required." }); invalid = true; }
+    if (!values.taxName.trim()) { form.setError("taxName", { message: "Tax name is required." }); invalid = true; }
+    if (values.percentage === "" || !Number.isFinite(percentage) || percentage < 0) { form.setError("percentage", { message: "Enter a valid non-negative percentage." }); invalid = true; }
+    if (invalid) return;
+    const taxCode = values.taxCode.trim();
+    createMutation.mutate(
+      { taxCode, taxName: values.taxName.trim(), percentage, description: values.description.trim() || null, isActive: true },
+      { onSuccess: (tax) => { onCreated(tax.taxCode); form.reset(); onOpenChange(false); } }
+    );
+  });
+
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="New Tax Rate" description="Create and select a tax rate without leaving the product." onSubmit={submit} isSubmitting={createMutation.isPending} submitLabel="Create Tax Rate">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5"><Label>Tax Code *</Label><Input autoFocus placeholder="e.g. VAT15" {...form.register("taxCode")} />{form.formState.errors.taxCode && <p className="text-xs text-destructive">{form.formState.errors.taxCode.message}</p>}</div>
+        <div className="space-y-1.5"><Label>Tax Name *</Label><Input placeholder="e.g. VAT" {...form.register("taxName")} />{form.formState.errors.taxName && <p className="text-xs text-destructive">{form.formState.errors.taxName.message}</p>}</div>
+        <div className="space-y-1.5"><Label>Percentage *</Label><Input type="number" min="0" step="0.01" {...form.register("percentage")} />{form.formState.errors.percentage && <p className="text-xs text-destructive">{form.formState.errors.percentage.message}</p>}</div>
+        <div className="col-span-2 space-y-1.5"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
+      </div>
+    </FormDialog>
   );
 }
 
