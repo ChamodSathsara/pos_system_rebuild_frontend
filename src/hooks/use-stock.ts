@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { damageItemsApi, stockBatchesApi, stockInventoriesApi, stockMovementsApi } from "@/lib/api";
+import { damageItemsApi, openingStocksApi, stockBatchesApi, stockInventoriesApi, stockMovementsApi } from "@/lib/api";
 import { useApiMutation } from "./use-api-mutation";
 import type {
   CreateDamageItemRequest,
+  CreateOpeningStockRequest,
   CreateStockBatchRequest,
   CreateStockInventoryRequest,
   CreateStockMovementRequest,
@@ -17,6 +18,13 @@ export const sq = {
   movements: (params?: Record<string, unknown>) => ["stock-movements", params ?? {}] as const,
   damage: (params?: Record<string, unknown>) => ["damage-items", params ?? {}] as const,
 };
+
+export function useCreateOpeningStock() {
+  return useApiMutation((body: CreateOpeningStockRequest) => openingStocksApi.create(body), {
+    successMessage: (response) => response.message,
+    invalidateKeys: [["stock-inventories"], ["stock-batches"], ["stock-movements"]],
+  });
+}
 
 export function useStockInventories(params?: {
   itemCode?: string;

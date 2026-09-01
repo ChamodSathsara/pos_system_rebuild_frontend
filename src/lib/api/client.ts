@@ -75,6 +75,27 @@ export const api = {
   get: <T>(url: string, config?: AxiosRequestConfig) => unwrap<T>(httpClient.get(url, config)),
   post: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
     unwrap<T>(httpClient.post(url, body, config)),
+  postWithMessage: async <T>(url: string, body?: unknown, config?: AxiosRequestConfig) => {
+    try {
+      const response = await httpClient.post<ApiResponse<T>>(url, body, config);
+      const envelope = response.data;
+      if (!envelope || envelope.success === false) {
+        throw new ApiError(envelope?.message || "Request failed", response.status, envelope?.errors);
+      }
+      return { data: envelope.data as T, message: envelope.message };
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      const axiosErr = err as AxiosError<ApiResponse<unknown>>;
+      const envelope = axiosErr.response?.data;
+      const message =
+        envelope?.message ||
+        (axiosErr.code === "ERR_NETWORK"
+          ? "Cannot reach the server. Check your connection or try again."
+          : axiosErr.message) ||
+        "Something went wrong.";
+      throw new ApiError(message, axiosErr.response?.status, envelope?.errors);
+    }
+  },
   put: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
     unwrap<T>(httpClient.put(url, body, config)),
   delete: <T>(url: string, config?: AxiosRequestConfig) => unwrap<T>(httpClient.delete(url, config)),

@@ -16,6 +16,7 @@ import {
   Warehouse,
   AlertTriangle,
   FileStack,
+  PackagePlus,
   Landmark,
   ShieldCheck,
   type LucideIcon,
@@ -59,6 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Inventory",
     items: [
       { label: "Stock Levels", href: "/inventory/stock", icon: Boxes },
+      { label: "Opening Stock", href: "/inventory/opening-stock", icon: PackagePlus, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Damage Items", href: "/inventory/damage", icon: AlertTriangle },
     ],
   },

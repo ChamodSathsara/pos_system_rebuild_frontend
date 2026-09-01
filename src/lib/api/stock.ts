@@ -1,11 +1,13 @@
 import { api, cleanParams } from "./client";
 import type {
   CreateDamageItemRequest,
+  CreateOpeningStockRequest,
   CreateStockBatchRequest,
   CreateStockInventoryRequest,
   CreateStockMovementRequest,
   DamageItem,
   DamageItemStatus,
+  OpeningStockResult,
   StockBatch,
   StockInventory,
   StockMovement,
@@ -13,6 +15,11 @@ import type {
   UpdateStockBatchRequest,
   UpdateStockMovementRequest,
 } from "@/types";
+
+export const openingStocksApi = {
+  create: (body: CreateOpeningStockRequest) =>
+    api.postWithMessage<OpeningStockResult>("/api/opening-stocks", body),
+};
 
 export const stockInventoriesApi = {
   list: (params?: { itemCode?: string; branchCode?: string; warehouseCode?: string; onlyBelowReorderLevel?: boolean }) =>

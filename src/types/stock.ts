@@ -16,6 +16,32 @@ export interface CreateStockInventoryRequest {
   warehouseCode: string;
 }
 
+export interface CreateOpeningStockRequest {
+  itemCode: string;
+  branchCode: string;
+  warehouseCode: string;
+  batchNo: string;
+  quantity: number;
+  unitCost: number;
+  expiryDate: string | null;
+  openingDate: string;
+  referenceNo?: string | null;
+  remarks?: string | null;
+}
+
+export interface OpeningStockResult {
+  stockId: number;
+  batchId: number;
+  batchNo: string;
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+  expiryDate?: string | null;
+  openingDate: string;
+  referenceNo?: string | null;
+  referenceType: string;
+}
+
 export interface StockBatch {
   batchId: number;
   stockId: number;
