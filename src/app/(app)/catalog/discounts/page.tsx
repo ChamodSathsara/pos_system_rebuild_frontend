@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { FormDialog } from "@/components/shared/form-dialog";
@@ -14,9 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCreateDiscount, useDeleteDiscount, useDiscounts, useUpdateDiscount } from "@/hooks/use-misc";
-import { DiscountMethod, DiscountType, type Discount } from "@/types";
+import { useProducts } from "@/hooks/use-catalog";
+import { DiscountMethod, DiscountType, type Discount, type Product } from "@/types";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type FieldRule = "required" | "optional" | "hide";
 interface DiscountFieldRules {
@@ -58,6 +61,7 @@ interface FormValues {
 
 export default function DiscountsPage() {
   const { data, isLoading, isError, refetch } = useDiscounts();
+  const { data: products, isLoading: productsLoading } = useProducts({ isActive: true });
   const createM = useCreateDiscount();
   const updateM = useUpdateDiscount();
   const deleteM = useDeleteDiscount();
@@ -81,6 +85,7 @@ export default function DiscountsPage() {
     },
   });
   const type = form.watch("discountType");
+  const itemCode = form.watch("itemCode");
   const rules = fieldsFor(type);
 
   const openCreate = () => {
@@ -119,6 +124,10 @@ export default function DiscountsPage() {
 
   const onSubmit = form.handleSubmit((v) => {
     const r = fieldsFor(v.discountType);
+    if (r.itemCode === "required" && !v.itemCode) {
+      form.setError("itemCode", { message: "Select an item." });
+      return;
+    }
     const base = {
       discountName: v.discountName,
       discountMethod: v.discountMethod,
@@ -217,8 +226,14 @@ export default function DiscountsPage() {
 
           {rules.itemCode !== "hide" && (
             <div className="space-y-1.5">
-              <Label>Item Code {rules.itemCode === "required" && "*"}</Label>
-              <Input placeholder="e.g. ITM00012" {...form.register("itemCode")} />
+              <Label>Item {rules.itemCode === "required" && "*"}</Label>
+              <ProductSelector
+                products={products ?? []}
+                value={itemCode}
+                onChange={(value) => form.setValue("itemCode", value, { shouldDirty: true, shouldValidate: true })}
+                isLoading={productsLoading}
+              />
+              {form.formState.errors.itemCode && <p className="text-xs text-destructive">{form.formState.errors.itemCode.message}</p>}
             </div>
           )}
           {rules.minQuantity !== "hide" && (
@@ -267,5 +282,61 @@ export default function DiscountsPage() {
         onConfirm={() => deleting && deleteM.mutate(deleting.discountCode, { onSuccess: () => setDeleting(null) })}
       />
     </div>
+  );
+}
+
+function ProductSelector({ products, value, onChange, isLoading }: { products: Product[]; value: string; onChange: (itemCode: string) => void; isLoading: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const selected = products.find((product) => product.itemCode === value);
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = normalizedSearch
+    ? products.filter((product) => product.itemCode.toLowerCase().includes(normalizedSearch) || product.itemName.toLowerCase().includes(normalizedSearch))
+    : products;
+
+  return (
+    <Popover open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setSearch(""); }}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open} className="h-auto min-h-9 w-full justify-between px-3 py-2 font-normal" disabled={isLoading}>
+          {selected ? (
+            <span className="min-w-0 text-left">
+              <span className="block truncate">{selected.itemName}</span>
+              <span className="block truncate text-xs text-muted-foreground">{selected.itemCode}</span>
+            </span>
+          ) : <span className="text-muted-foreground">{isLoading ? "Loading items..." : "Select an item"}</span>}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+        <div className="flex items-center border-b border-border px-3">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by item name or code..."
+            className="border-0 shadow-none focus-visible:ring-0"
+            autoFocus
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching items found.</p>
+          ) : filtered.map((product) => (
+            <button
+              key={product.itemCode}
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none"
+              onClick={() => { onChange(product.itemCode); setOpen(false); setSearch(""); }}
+            >
+              <Check className={cn("h-4 w-4 shrink-0", value === product.itemCode ? "opacity-100" : "opacity-0")} />
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{product.itemName}</span>
+                <span className="block truncate text-xs text-muted-foreground">{product.itemCode}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
