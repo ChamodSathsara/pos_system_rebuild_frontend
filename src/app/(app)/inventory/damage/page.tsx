@@ -1,21 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { FormDialog } from "@/components/shared/form-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BranchFilter } from "@/components/shared/branch-filter";
+import { ProductSelector } from "@/components/shared/product-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateDamageItem, useDamageItems, useUpdateDamageItem } from "@/hooks/use-stock";
-import { useEffectiveBranchCode } from "@/store/auth-store";
+import { useProducts } from "@/hooks/use-catalog";
+import { useBranches, useWarehouses } from "@/hooks/use-organization";
+import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
+import { isBranchScoped } from "@/lib/permissions";
 import { formatDate, formatMoney } from "@/lib/format";
 import { DamageItemStatus, type DamageItem } from "@/types";
 import { toast } from "sonner";
@@ -29,6 +33,8 @@ const NEXT_STATUS: Record<DamageItemStatus, DamageItemStatus[]> = {
 };
 
 export default function DamageItemsPage() {
+  const user = useAuthStore((state) => state.user);
+  const branchScoped = isBranchScoped(user?.roleName);
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
   const { data, isLoading, isError, refetch } = useDamageItems({ branchCode });
@@ -38,6 +44,13 @@ export default function DamageItemsPage() {
   const updateM = useUpdateDamageItem();
 
   const form = useForm({ defaultValues: { itemCode: "", branchCode: "", warehouseCode: "", quantity: "", costAmount: "", reason: "", damageDate: "" } });
+  const selectedItem = useWatch({ control: form.control, name: "itemCode" });
+  const selectedBranch = useWatch({ control: form.control, name: "branchCode" });
+  const selectedWarehouse = useWatch({ control: form.control, name: "warehouseCode" });
+  const { data: products, isLoading: productsLoading } = useProducts({ isActive: true });
+  const { data: branches, isLoading: branchesLoading } = useBranches();
+  const { data: warehouses, isLoading: warehousesLoading } = useWarehouses(selectedBranch || undefined);
+  const activeWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.isActive && warehouse.branchCode === selectedBranch);
 
   const openCreate = () => {
     form.reset({ itemCode: "", branchCode: branchCode ?? "", warehouseCode: "", quantity: "", costAmount: "", reason: "", damageDate: "" });
@@ -46,7 +59,7 @@ export default function DamageItemsPage() {
 
   const onSubmit = form.handleSubmit((v) => {
     if (!v.itemCode || !v.branchCode || !v.quantity) {
-      toast.error("Item code, branch, and quantity are required.");
+      toast.error("Item, branch, and quantity are required.");
       return;
     }
     createM.mutate(
@@ -135,9 +148,24 @@ export default function DamageItemsPage() {
 
       <FormDialog open={open} onOpenChange={setOpen} title="Report Damage" onSubmit={onSubmit} isSubmitting={createM.isPending} submitLabel="Submit Report">
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5"><Label>Item Code *</Label><Input placeholder="e.g. ITM00012" {...form.register("itemCode")} /></div>
-          <div className="space-y-1.5"><Label>Branch Code *</Label><Input {...form.register("branchCode")} /></div>
-          <div className="space-y-1.5"><Label>Warehouse Code</Label><Input {...form.register("warehouseCode")} /></div>
+          <div className="space-y-1.5">
+            <Label>Item *</Label>
+            <ProductSelector products={products ?? []} value={selectedItem} onChange={(value) => form.setValue("itemCode", value, { shouldDirty: true })} isLoading={productsLoading} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Branch *</Label>
+            <Select value={selectedBranch} onValueChange={(value) => { form.setValue("branchCode", value, { shouldDirty: true }); form.setValue("warehouseCode", ""); }} disabled={branchScoped || branchesLoading}>
+              <SelectTrigger><SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select branch"} /></SelectTrigger>
+              <SelectContent>{branches?.map((branch) => <SelectItem key={branch.branchCode} value={branch.branchCode}>{branch.branchName} ({branch.branchCode})</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Warehouse</Label>
+            <Select value={selectedWarehouse} onValueChange={(value) => form.setValue("warehouseCode", value, { shouldDirty: true })} disabled={!selectedBranch || warehousesLoading}>
+              <SelectTrigger><SelectValue placeholder={!selectedBranch ? "Select branch first" : warehousesLoading ? "Loading warehouses..." : "Select warehouse"} /></SelectTrigger>
+              <SelectContent>{activeWarehouses.map((warehouse) => <SelectItem key={warehouse.warehouseCode} value={warehouse.warehouseCode}>{warehouse.warehouseName} ({warehouse.warehouseCode})</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1.5"><Label>Quantity *</Label><Input type="number" step="0.01" {...form.register("quantity")} /></div>
           <div className="space-y-1.5"><Label>Cost Amount</Label><Input type="number" step="0.01" {...form.register("costAmount")} /></div>
           <div className="space-y-1.5"><Label>Damage Date</Label><Input type="date" {...form.register("damageDate")} /></div>
