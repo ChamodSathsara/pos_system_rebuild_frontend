@@ -1,4 +1,4 @@
-import { api, cleanParams } from "./client";
+import { api, cleanParams, httpClient } from "./client";
 import type {
   CancelPaymentRequest,
   CreatePaymentRequest,
@@ -40,6 +40,14 @@ export const salesApi = {
   get: (invoiceNo: string) => api.get<Sale>(`/api/sales/${invoiceNo}`),
   create: (body: CreateSaleRequest) => api.post<Sale>("/api/sales", body),
   invoice: (invoiceNo: string) => api.get<SaleInvoice>(`/api/sales/${invoiceNo}/invoice`),
+  invoiceHtml: async (invoiceNo: string) => {
+    const response = await httpClient.get<string>(`/api/sales/${invoiceNo}/invoice`, {
+      params: { format: "html" },
+      headers: { Accept: "text/html" },
+      responseType: "text",
+    });
+    return response.data;
+  },
   cancel: (invoiceNo: string) => api.post<Sale>(`/api/sales/${invoiceNo}/cancel`),
 };
 

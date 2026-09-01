@@ -33,6 +33,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
+import { salesApi } from "@/lib/api";
 
 interface CartLine {
   itemCode: string;
@@ -62,8 +63,10 @@ export default function PosTerminalPage() {
   const [customerCode, setCustomerCode] = useState("");
   const [billDiscount, setBillDiscount] = useState(0);
   const [payments, setPayments] = useState<PaymentLine[]>([]);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<string | null>(null);
+  const [lastPaymentSummary, setLastPaymentSummary] = useState({ tendered: 0, change: 0 });
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -197,6 +200,19 @@ export default function PosTerminalPage() {
 
   const payExactCash = () => setPayments([{ id: crypto.randomUUID(), paymentMethod: "Cash", amount: total.toFixed(2) }]);
 
+  const openPaymentDialog = () => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty.");
+      return;
+    }
+    if (!branchCode) {
+      toast.error("Your account does not have an assigned branch.");
+      return;
+    }
+    setPayments([{ id: crypto.randomUUID(), paymentMethod: "Cash", amount: total.toFixed(2) }]);
+    setPaymentDialogOpen(true);
+  };
+
   const resetCart = () => {
     setCart([]);
     setCustomerCode("");
@@ -205,18 +221,26 @@ export default function PosTerminalPage() {
   };
 
   const checkout = () => {
-    if (cart.length === 0) {
-      toast.error("Cart is empty.");
+    if (billDiscount < 0) {
+      toast.error("Discount cannot be negative.");
       return;
     }
-    if (!branchCode) {
-      toast.error("Select a branch first.");
+    if (billDiscount > subtotal - lineDiscounts) {
+      toast.error("Bill discount cannot exceed the amount after item discounts.");
       return;
     }
-    if (payments.length > 0 && paidTotal > total + 0.01) {
-      toast.error("Total payments exceed the bill total.");
+    if (payments.length === 0 || paidTotal < total - 0.01) {
+      toast.error("Enter the full payment amount before completing the sale.");
       return;
     }
+    let remainingPayment = total;
+    const recordedPayments = payments
+      .filter((payment) => Number(payment.amount) > 0 && remainingPayment > 0)
+      .map((payment) => {
+        const amount = Math.min(Number(payment.amount), remainingPayment);
+        remainingPayment -= amount;
+        return { paymentMethod: payment.paymentMethod, amount };
+      });
     createSale.mutate(
       {
         invoiceNo: null,
@@ -224,13 +248,13 @@ export default function PosTerminalPage() {
         customerCode: customerCode || null,
         discountAmount: billDiscount || null,
         items: cart.map((l) => ({ itemCode: l.itemCode, quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount || null })),
-        payments: payments
-          .filter((p) => Number(p.amount) > 0)
-          .map((p) => ({ paymentMethod: p.paymentMethod, amount: Number(p.amount) })),
+        payments: recordedPayments,
       },
       {
         onSuccess: (sale) => {
           toast.success(`Sale ${sale.invoiceNo} completed`);
+          setPaymentDialogOpen(false);
+          setLastPaymentSummary({ tendered: paidTotal, change: Math.max(0, paidTotal - total) });
           setLastInvoice(sale.invoiceNo);
           resetCart();
         },
@@ -365,56 +389,77 @@ export default function PosTerminalPage() {
               <div className="flex justify-between text-muted-foreground"><span>Item Discounts</span><span className="num text-success">-{formatMoney(lineDiscounts)}</span></div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>Bill Discount</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={billDiscount}
-                  onChange={(e) => setBillDiscount(Number(e.target.value) || 0)}
-                  className="h-7 w-24 text-right num"
-                />
+                <span className="num text-success">-{formatMoney(billDiscount)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground"><span>Est. Tax</span><span className="num">{formatMoney(estTax)}</span></div>
               <div className="flex justify-between border-t border-border pt-1.5 text-base font-bold text-foreground"><span>Total</span><span className="num">{formatMoney(total)}</span></div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Payments</Label>
-                <div className="flex gap-1">
-                  <Button size="xs" variant="secondary" onClick={payExactCash}><Banknote className="h-3.5 w-3.5" /> Full Cash</Button>
-                  <Button size="xs" variant="outline" onClick={() => addPayment()}><Plus className="h-3.5 w-3.5" /> Add</Button>
-                </div>
-              </div>
-              {payments.map((p) => (
-                <div key={p.id} className="flex items-center gap-1.5">
-                  <Select value={p.paymentMethod} onValueChange={(v) => updatePayment(p.id, { paymentMethod: v as PaymentMethod })}>
-                    <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PaymentMethod.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input type="number" step="0.01" className="h-8 w-24 num" value={p.amount} onChange={(e) => updatePayment(p.id, { amount: e.target.value })} />
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removePayment(p.id)}><X className="h-3.5 w-3.5" /></Button>
-                </div>
-              ))}
-              {payments.length > 0 && (
-                <div className={`flex justify-between text-xs font-medium ${balance > 0.01 ? "text-warning" : balance < -0.01 ? "text-destructive" : "text-success"}`}>
-                  <span>{balance > 0.01 ? "Balance Due" : balance < -0.01 ? "Change" : "Fully Paid"}</span>
-                  <span className="num">{formatMoney(Math.abs(balance))}</span>
-                </div>
-              )}
-            </div>
-
-            <Button className="h-11 w-full text-base" disabled={cart.length === 0 || createSale.isPending} onClick={checkout}>
-              {createSale.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ReceiptIcon className="h-4 w-4" />}
-              Complete Sale — {formatMoney(total)}
+            <Button className="h-11 w-full text-base" disabled={cart.length === 0} onClick={openPaymentDialog}>
+              <Banknote className="h-4 w-4" /> Proceed to Payment — {formatMoney(total)}
             </Button>
           </div>
         </Card>
       </div>
 
+      <Dialog open={paymentDialogOpen} onOpenChange={(open) => !createSale.isPending && setPaymentDialogOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Complete Payment</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Bill Discount</Label>
+              <Input type="number" min="0" step="0.01" value={billDiscount} onChange={(event) => setBillDiscount(Number(event.target.value) || 0)} />
+              <p className="text-xs text-muted-foreground">Item discounts already applied: {formatMoney(lineDiscounts)}</p>
+            </div>
+
+            <div className="space-y-1.5 rounded-lg border border-border p-3 text-sm">
+              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="num">{formatMoney(subtotal)}</span></div>
+              <div className="flex justify-between text-muted-foreground"><span>Total Discounts</span><span className="num text-success">-{formatMoney(lineDiscounts + billDiscount)}</span></div>
+              <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="num">{formatMoney(estTax)}</span></div>
+              <div className="flex items-end justify-between border-t border-border pt-3"><span className="font-semibold">Amount Due</span><span className="num text-2xl font-bold text-primary">{formatMoney(total)}</span></div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Payment Method & Amount *</Label>
+                <div className="flex gap-1">
+                  <Button type="button" size="xs" variant="secondary" onClick={payExactCash}><Banknote /> Full Cash</Button>
+                  <Button type="button" size="xs" variant="outline" onClick={() => addPayment()}><Plus /> Split</Button>
+                </div>
+              </div>
+              {payments.map((payment) => (
+                <div key={payment.id} className="flex items-center gap-2">
+                  <Select value={payment.paymentMethod} onValueChange={(value) => updatePayment(payment.id, { paymentMethod: value as PaymentMethod })}>
+                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PaymentMethod.map((method) => <SelectItem key={method} value={method}>{method}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input type="number" min="0" step="0.01" className="h-12 w-40 num text-lg font-bold" value={payment.amount} onChange={(event) => updatePayment(payment.id, { amount: event.target.value })} aria-label="Tendered amount" />
+                  <Button type="button" size="icon" variant="ghost" className="text-destructive" onClick={() => removePayment(payment.id)}><X /></Button>
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tendered Amount</p>
+                  <p className="num mt-1 text-2xl font-bold text-foreground">{formatMoney(paidTotal)}</p>
+                </div>
+                <div className={`rounded-lg border p-3 ${balance > 0.01 ? "border-warning/40 bg-warning/10 text-warning" : "border-success/40 bg-success/10 text-success"}`}>
+                  <p className="text-xs font-medium uppercase tracking-wide">{balance > 0.01 ? "Balance Due" : balance < -0.01 ? "Change Due" : "Fully Paid"}</p>
+                  <p className="num mt-1 text-2xl font-bold">{formatMoney(Math.abs(balance))}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={createSale.isPending} onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+            <Button type="button" disabled={createSale.isPending || payments.length === 0 || balance > 0.01} onClick={checkout}>
+              {createSale.isPending ? <Loader2 className="animate-spin" /> : <ReceiptIcon />} Complete Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <NewCustomerDialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen} onCreated={(code) => setCustomerCode(code)} />
-      <ReceiptDialog invoiceNo={lastInvoice} onClose={() => setLastInvoice(null)} />
+      <ReceiptDialog invoiceNo={lastInvoice} tendered={lastPaymentSummary.tendered} change={lastPaymentSummary.change} onClose={() => setLastInvoice(null)} />
     </div>
   );
 }
@@ -458,8 +503,36 @@ function NewCustomerDialog({ open, onOpenChange, onCreated }: { open: boolean; o
   );
 }
 
-function ReceiptDialog({ invoiceNo, onClose }: { invoiceNo: string | null; onClose: () => void }) {
+function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: string | null; tendered: number; change: number; onClose: () => void }) {
   const { data: invoice, isLoading } = useSaleInvoice(invoiceNo ?? undefined);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const printInvoice = async () => {
+    if (!invoiceNo || isPrinting) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Allow pop-ups to print the invoice.");
+      return;
+    }
+    printWindow.opener = null;
+    setIsPrinting(true);
+    printWindow.document.write("<p style='font-family:sans-serif;padding:24px'>Loading invoice...</p>");
+    try {
+      const html = await salesApi.invoiceHtml(invoiceNo);
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+      };
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (error) {
+      printWindow.close();
+      toast.error(error instanceof Error ? error.message : "Failed to load the printable invoice.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   return (
     <Dialog open={!!invoiceNo} onOpenChange={(o) => !o && onClose()}>
@@ -482,11 +555,16 @@ function ReceiptDialog({ invoiceNo, onClose }: { invoiceNo: string | null; onClo
             <div className="flex justify-between font-semibold"><span>Total</span><span>{formatMoney(invoice.totalAmount)}</span></div>
             <div className="flex justify-between"><span>Paid</span><span>{formatMoney(invoice.paidAmount)}</span></div>
             <div className="flex justify-between"><span>Balance</span><span>{formatMoney(invoice.balanceAmount)}</span></div>
+            <div className="receipt-notch my-2 h-px opacity-50" />
+            <div className="flex justify-between font-semibold"><span>Tendered</span><span>{formatMoney(tendered)}</span></div>
+            <div className="flex justify-between text-sm font-bold"><span>Change</span><span>{formatMoney(change)}</span></div>
           </div>
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={() => window.print()}><Printer className="h-4 w-4" /> Print</Button>
+          <Button onClick={printInvoice} disabled={!invoiceNo || isPrinting}>
+            {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />} {isPrinting ? "Loading..." : "Print"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
