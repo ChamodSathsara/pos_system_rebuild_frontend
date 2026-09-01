@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { ColumnDef } from "@tanstack/react-table";
 import { Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -10,14 +10,17 @@ import { DataTable } from "@/components/shared/data-table";
 import { FormDialog } from "@/components/shared/form-dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BranchFilter } from "@/components/shared/branch-filter";
+import { ProductSelector } from "@/components/shared/product-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreatePurchaseOrder, usePurchaseOrders } from "@/hooks/use-purchase";
 import { useVendors } from "@/hooks/use-party";
-import { useEffectiveBranchCode } from "@/store/auth-store";
+import { useProducts } from "@/hooks/use-catalog";
+import { useBranches } from "@/hooks/use-organization";
+import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
+import { isBranchScoped } from "@/lib/permissions";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { PurchaseOrder, PurchaseOrderStatus } from "@/types";
 import { toast } from "sonner";
@@ -73,7 +76,7 @@ export default function PurchaseOrdersPage() {
         emptyTitle="No purchase orders yet"
       />
 
-      <CreatePODialog open={open} onOpenChange={setOpen} defaultBranch={branchCode} />
+      <CreatePODialog key={branchCode ?? "all-branches"} open={open} onOpenChange={setOpen} defaultBranch={branchCode} />
     </div>
   );
 }
@@ -92,13 +95,20 @@ interface CreateForm {
 }
 
 function CreatePODialog({ open, onOpenChange, defaultBranch }: { open: boolean; onOpenChange: (o: boolean) => void; defaultBranch?: string }) {
+  const user = useAuthStore((state) => state.user);
+  const branchScoped = isBranchScoped(user?.roleName);
   const { data: vendors } = useVendors(true);
+  const { data: branches, isLoading: branchesLoading } = useBranches();
+  const { data: products, isLoading: productsLoading } = useProducts({ isActive: true });
   const createM = useCreatePurchaseOrder();
 
   const form = useForm<CreateForm>({
     defaultValues: { vendorId: "", branchCode: defaultBranch ?? "", expectedDate: "", remarks: "", items: [{ itemCode: "", quantity: "", unitCost: "" }] },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
+  const selectedBranch = useWatch({ control: form.control, name: "branchCode" });
+  const selectedVendor = useWatch({ control: form.control, name: "vendorId" });
+  const selectedItems = useWatch({ control: form.control, name: "items" });
 
   const onSubmit = form.handleSubmit((v) => {
     if (!v.vendorId || !v.branchCode) {
@@ -126,14 +136,20 @@ function CreatePODialog({ open, onOpenChange, defaultBranch }: { open: boolean; 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Vendor *</Label>
-          <Select value={form.watch("vendorId")} onValueChange={(v) => form.setValue("vendorId", v)}>
+          <Select value={selectedVendor} onValueChange={(v) => form.setValue("vendorId", v)}>
             <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
             <SelectContent>
               {vendors?.map((v) => <SelectItem key={v.vendorId} value={String(v.vendorId)}>{v.vendorName}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5"><Label>Branch Code *</Label><Input {...form.register("branchCode")} /></div>
+        <div className="space-y-1.5">
+          <Label>Branch *</Label>
+          <Select value={selectedBranch} onValueChange={(value) => form.setValue("branchCode", value, { shouldDirty: true })} disabled={branchScoped || branchesLoading}>
+            <SelectTrigger><SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select branch"} /></SelectTrigger>
+            <SelectContent>{branches?.map((branch) => <SelectItem key={branch.branchCode} value={branch.branchCode}>{branch.branchName} ({branch.branchCode})</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
         <div className="space-y-1.5"><Label>Expected Date</Label><Input type="date" {...form.register("expectedDate")} /></div>
         <div className="space-y-1.5"><Label>Remarks</Label><Input {...form.register("remarks")} /></div>
       </div>
@@ -148,7 +164,9 @@ function CreatePODialog({ open, onOpenChange, defaultBranch }: { open: boolean; 
         <div className="space-y-2">
           {fields.map((field, idx) => (
             <div key={field.id} className="flex items-center gap-2">
-              <Input placeholder="Item code" className="flex-1" {...form.register(`items.${idx}.itemCode` as const)} />
+              <div className="min-w-0 flex-1">
+                <ProductSelector products={products ?? []} value={selectedItems?.[idx]?.itemCode ?? ""} onChange={(value) => form.setValue(`items.${idx}.itemCode`, value, { shouldDirty: true })} isLoading={productsLoading} />
+              </div>
               <Input placeholder="Qty" type="number" step="0.01" className="w-24" {...form.register(`items.${idx}.quantity` as const)} />
               <Input placeholder="Unit cost" type="number" step="0.01" className="w-28" {...form.register(`items.${idx}.unitCost` as const)} />
               <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => remove(idx)} disabled={fields.length === 1}>
