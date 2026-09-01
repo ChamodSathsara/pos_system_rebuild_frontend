@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { paymentsApi, saleReturnsApi, salesApi } from "@/lib/api";
+import { paymentsApi, posTerminalApi, saleReturnsApi, salesApi, type PosTerminalItemParams } from "@/lib/api";
 import { useApiMutation } from "./use-api-mutation";
 import type {
   CancelPaymentRequest,
@@ -17,7 +17,12 @@ export const slq = {
   invoice: (invoiceNo: string) => ["sale-invoice", invoiceNo] as const,
   returns: (params?: Record<string, unknown>) => ["sale-returns", params ?? {}] as const,
   payments: (params?: Record<string, unknown>) => ["payments", params ?? {}] as const,
+  posItems: (params?: PosTerminalItemParams) => ["pos-terminal-items", params ?? {}] as const,
 };
+
+export function usePosTerminalItems(params?: PosTerminalItemParams) {
+  return useQuery({ queryKey: slq.posItems(params), queryFn: () => posTerminalApi.items(params) });
+}
 
 export function useSales(params?: {
   branchCode?: string;
@@ -44,7 +49,7 @@ export function useSaleInvoice(invoiceNo?: string) {
 }
 export function useCreateSale() {
   return useApiMutation((body: CreateSaleRequest) => salesApi.create(body), {
-    invalidateKeys: [["sales"], ["stock-inventories"], ["stock-batches"], ["stock-movements"], ["cashier-shifts"]],
+    invalidateKeys: [["sales"], ["stock-inventories"], ["stock-batches"], ["stock-movements"], ["cashier-shifts"], ["pos-terminal-items"]],
   });
 }
 export function useCancelSale() {

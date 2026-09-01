@@ -72,6 +72,28 @@ export interface Product {
   updatedAt?: string | null;
 }
 
+export interface PosTerminalItem {
+  stockId: number;
+  itemCode: string;
+  itemName: string;
+  description?: string | null;
+  barcode?: string | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  brandId?: number | null;
+  brandName?: string | null;
+  unitOfMeasure: UnitOfMeasure;
+  itemGroup: ItemGroup;
+  price: number;
+  availableQty: number;
+  reorderLevel?: number | null;
+  taxCode?: string | null;
+  taxPercentage?: number | null;
+  branchCode: string;
+  warehouseCode: string;
+  isAvailable: boolean;
+}
+
 export interface CreateProductRequest {
   itemCode?: string | null;
   itemName: string;

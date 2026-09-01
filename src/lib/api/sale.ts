@@ -7,11 +7,27 @@ import type {
   Payment,
   PaymentMethod,
   PaymentStatus,
+  PosTerminalItem,
   Sale,
   SaleInvoice,
   SaleReturn,
   SaleStatus,
 } from "@/types";
+
+export interface PosTerminalItemParams {
+  keyword?: string;
+  categoryId?: number;
+  warehouseCode?: string;
+  onlyAvailable?: boolean;
+}
+
+export const posTerminalApi = {
+  items: (params?: PosTerminalItemParams) =>
+    api.get<PosTerminalItem[]>("/api/pos-terminal/items", {
+      params: cleanParams({ ...params }),
+      headers: { Accept: "application/json" },
+    }),
+};
 
 export const salesApi = {
   list: (params?: {

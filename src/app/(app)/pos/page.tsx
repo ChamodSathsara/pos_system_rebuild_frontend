@@ -23,15 +23,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useProducts } from "@/hooks/use-catalog";
-import { useCreateSale, useSaleInvoice } from "@/hooks/use-sale";
+import { useCreateSale, usePosTerminalItems, useSaleInvoice } from "@/hooks/use-sale";
 import { useCustomer, useCreateCustomer } from "@/hooks/use-party";
 import { useEvaluateDiscount } from "@/hooks/use-misc";
 import { useAuthStore } from "@/store/auth-store";
-import { isBranchScoped } from "@/lib/permissions";
-import { useBranches } from "@/hooks/use-organization";
+import { useCategories } from "@/hooks/use-catalog";
+import { useWarehouses } from "@/hooks/use-organization";
+import { ErrorState } from "@/components/shared/error-state";
 import { formatMoney } from "@/lib/format";
-import { PaymentMethod, type Product } from "@/types";
+import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
 
 interface CartLine {
@@ -41,6 +41,7 @@ interface CartLine {
   quantity: number;
   discountAmount: number;
   taxPercentage: number;
+  availableQty: number;
 }
 
 interface PaymentLine {
@@ -51,11 +52,12 @@ interface PaymentLine {
 
 export default function PosTerminalPage() {
   const user = useAuthStore((s) => s.user);
-  const scoped = isBranchScoped(user?.roleName);
-  const { data: branches } = useBranches();
-  const [branchCode, setBranchCode] = useState<string>(user?.branchCode ?? "");
+  const branchCode = user?.branchCode ?? "";
 
   const [query, setQuery] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [warehouseCode, setWarehouseCode] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerCode, setCustomerCode] = useState("");
   const [billDiscount, setBillDiscount] = useState(0);
@@ -64,15 +66,39 @@ export default function PosTerminalPage() {
   const [lastInvoice, setLastInvoice] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const { data: results } = useProducts(query.length >= 2 ? { keyword: query, isActive: true } : undefined);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedKeyword(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const { data: categories } = useCategories(true);
+  const { data: warehouses } = useWarehouses(branchCode || undefined);
+  const {
+    data: terminalItems,
+    isLoading: itemsLoading,
+    isFetching: itemsFetching,
+    isError: itemsError,
+    error: itemListError,
+    refetch: refetchItems,
+  } = usePosTerminalItems({
+    keyword: debouncedKeyword || undefined,
+    categoryId: categoryId ? Number(categoryId) : undefined,
+    warehouseCode: warehouseCode || undefined,
+    onlyAvailable: true,
+  });
+  const results = (terminalItems ?? []).filter((item) => item.isAvailable && item.availableQty > 0);
   const { data: customer } = useCustomer(customerCode || undefined);
   const evaluateM = useEvaluateDiscount();
   const createSale = useCreateSale();
 
-  const addToCart = (p: Product) => {
+  const addToCart = (p: PosTerminalItem) => {
     setCart((prev) => {
       const existing = prev.find((l) => l.itemCode === p.itemCode);
       if (existing) {
+        if (existing.quantity >= p.availableQty) {
+          toast.error(`Only ${p.availableQty} ${p.unitOfMeasure} available for ${p.itemName}.`);
+          return prev;
+        }
         return prev.map((l) => (l.itemCode === p.itemCode ? { ...l, quantity: l.quantity + 1 } : l));
       }
       return [
@@ -80,10 +106,11 @@ export default function PosTerminalPage() {
         {
           itemCode: p.itemCode,
           itemName: p.itemName,
-          unitPrice: p.sellingPrice ?? 0,
+          unitPrice: p.price,
           quantity: 1,
           discountAmount: 0,
           taxPercentage: p.taxPercentage ?? 0,
+          availableQty: p.availableQty,
         },
       ];
     });
@@ -102,7 +129,14 @@ export default function PosTerminalPage() {
       setCart((prev) => prev.filter((l) => l.itemCode !== itemCode));
       return;
     }
-    setCart((prev) => prev.map((l) => (l.itemCode === itemCode ? { ...l, quantity: qty } : l)));
+    setCart((prev) => prev.map((l) => {
+      if (l.itemCode !== itemCode) return l;
+      if (qty > l.availableQty) {
+        toast.error(`Only ${l.availableQty} units available for ${l.itemName}.`);
+        return l;
+      }
+      return { ...l, quantity: qty };
+    }));
   };
 
   const removeLine = (itemCode: string) => setCart((prev) => prev.filter((l) => l.itemCode !== itemCode));
@@ -134,8 +168,8 @@ export default function PosTerminalPage() {
   // Auto-evaluate bill-level discounts whenever subtotal changes.
   useEffect(() => {
     if (subtotal <= 0) {
-      setBillDiscount(0);
-      return;
+      const timer = setTimeout(() => setBillDiscount(0), 0);
+      return () => clearTimeout(timer);
     }
     const timer = setTimeout(() => {
       evaluateM.mutate(
@@ -221,22 +255,24 @@ export default function PosTerminalPage() {
               className="h-11 pl-9 text-base"
             />
           </div>
-          {!scoped && (
-            <Select value={branchCode} onValueChange={setBranchCode}>
-              <SelectTrigger className="w-40 h-11"><SelectValue placeholder="Branch" /></SelectTrigger>
-              <SelectContent>
-                {branches?.map((b) => <SelectItem key={b.branchCode} value={b.branchCode}>{b.branchName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          {scoped && <Badge variant="outline" className="h-11 px-3">{branchCode}</Badge>}
+          <Select value={categoryId || "__all__"} onValueChange={(value) => setCategoryId(value === "__all__" ? "" : value)}>
+            <SelectTrigger className="h-11 w-40"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent><SelectItem value="__all__">All Categories</SelectItem>{categories?.map((category) => <SelectItem key={category.categoryId} value={String(category.categoryId)}>{category.categoryName}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={warehouseCode || "__all__"} onValueChange={(value) => setWarehouseCode(value === "__all__" ? "" : value)}>
+            <SelectTrigger className="h-11 w-40"><SelectValue placeholder="Warehouse" /></SelectTrigger>
+            <SelectContent><SelectItem value="__all__">All Warehouses</SelectItem>{warehouses?.filter((warehouse) => warehouse.isActive).map((warehouse) => <SelectItem key={warehouse.warehouseCode} value={warehouse.warehouseCode}>{warehouse.warehouseName}</SelectItem>)}</SelectContent>
+          </Select>
+          {branchCode && <Badge variant="outline" className="h-11 px-3">{branchCode}</Badge>}
         </div>
 
         <ScrollArea className="flex-1 rounded-xl border border-border bg-card p-3">
-          {query.length < 2 ? (
-            <EmptyState icon={Search} title="Start typing to search" description="Search by product name, or scan a barcode and press Enter." />
-          ) : !results || results.length === 0 ? (
-            <EmptyState title="No products found" description={`No matches for "${query}"`} />
+          {itemsLoading || itemsFetching ? (
+            <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading items...</div>
+          ) : itemsError ? (
+            <ErrorState message={itemListError?.message} onRetry={() => refetchItems()} />
+          ) : results.length === 0 ? (
+            <EmptyState title="No available items found" description={query ? `No available items match "${query}".` : "No items match the selected filters."} />
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {results.map((p) => (
@@ -247,7 +283,12 @@ export default function PosTerminalPage() {
                 >
                   <p className="line-clamp-2 text-sm font-medium text-foreground">{p.itemName}</p>
                   <p className="text-xs text-muted-foreground">{p.itemCode}</p>
-                  <p className="num mt-1 text-sm font-semibold text-primary">{formatMoney(p.sellingPrice)}</p>
+                  <p className="num mt-1 text-sm font-semibold text-primary">{formatMoney(p.price)}</p>
+                  <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-muted-foreground">
+                    <span>{p.availableQty} available</span>
+                    {p.barcode && <span>· {p.barcode}</span>}
+                    {p.categoryName && <span>· {p.categoryName}</span>}
+                  </div>
                 </button>
               ))}
             </div>
