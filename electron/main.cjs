@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow, dialog, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { fork } = require("node:child_process");
 const http = require("node:http");
 const net = require("node:net");
@@ -9,6 +9,38 @@ const DEVELOPMENT_URL = process.env.ELECTRON_START_URL || "http://127.0.0.1:3000
 const PREFERRED_PORT = 3210;
 let mainWindow = null;
 let nextServer = null;
+
+ipcMain.handle("invoice:print", async (event, html) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) throw new Error("Invoice print request was rejected.");
+  if (typeof html !== "string" || html.length === 0 || html.length > 5_000_000) throw new Error("Invalid invoice content.");
+
+  const printWindow = new BrowserWindow({
+    show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  try {
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    const printers = await printWindow.webContents.getPrintersAsync();
+    const receiptPrinter = printers.find((printer) => printer.name.toLowerCase() === "ga-e200 series".toLowerCase());
+    if (!receiptPrinter) throw new Error('Printer "GA-E200 Series" was not found.');
+
+    await new Promise((resolve, reject) => {
+      printWindow.webContents.print({
+        silent: true,
+        deviceName: receiptPrinter.name,
+        printBackground: true,
+        landscape: false,
+        margins: { marginType: "none" },
+      }, (success, reason) => {
+        if (success) resolve();
+        else reject(new Error(reason || "Printing failed."));
+      });
+    });
+    return { success: true };
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.close();
+  }
+});
 
 function canListen(port) {
   return new Promise((resolve) => {

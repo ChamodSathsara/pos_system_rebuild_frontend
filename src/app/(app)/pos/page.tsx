@@ -51,6 +51,38 @@ interface PaymentLine {
   amount: string;
 }
 
+async function printSaleInvoice(invoiceNo: string) {
+  const html = await salesApi.invoiceHtml(invoiceNo);
+  if (window.gestetnerDesktop?.isDesktop) {
+    await window.gestetnerDesktop.printInvoice(html);
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const printFrame = document.createElement("iframe");
+    printFrame.setAttribute("aria-hidden", "true");
+    Object.assign(printFrame.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
+    const cleanup = () => window.setTimeout(() => printFrame.remove(), 500);
+    printFrame.onerror = () => {
+      cleanup();
+      reject(new Error("The invoice print document could not be loaded."));
+    };
+    printFrame.onload = () => {
+      try {
+        printFrame.contentWindow?.focus();
+        printFrame.contentWindow?.print();
+        cleanup();
+        resolve();
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    };
+    document.body.appendChild(printFrame);
+    printFrame.srcdoc = html;
+  });
+}
+
 export default function PosTerminalPage() {
   const user = useAuthStore((s) => s.user);
   const branchCode = user?.branchCode ?? "";
@@ -265,9 +297,18 @@ export default function PosTerminalPage() {
         onSuccess: (sale) => {
           toast.success(`Sale ${sale.invoiceNo} completed`);
           setPaymentDialogOpen(false);
-          setLastPaymentSummary({ tendered: paidTotal, change: Math.max(0, paidTotal - total) });
-          setLastInvoice(sale.invoiceNo);
+          setLastInvoice(null);
           resetCart();
+          void printSaleInvoice(sale.invoiceNo)
+            .then(() => {
+              toast.success(`Invoice ${sale.invoiceNo} printed successfully.`);
+              searchRef.current?.focus();
+            })
+            .catch((error) => {
+              setLastPaymentSummary({ tendered: paidTotal, change: Math.max(0, paidTotal - total) });
+              setLastInvoice(sale.invoiceNo);
+              toast.error(error instanceof Error ? error.message : "Invoice could not be printed automatically.");
+            });
         },
       }
     );
@@ -556,25 +597,10 @@ function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: st
 
   const printInvoice = async () => {
     if (!invoiceNo || isPrinting) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      toast.error("Allow pop-ups to print the invoice.");
-      return;
-    }
-    printWindow.opener = null;
     setIsPrinting(true);
-    printWindow.document.write("<p style='font-family:sans-serif;padding:24px'>Loading invoice...</p>");
     try {
-      const html = await salesApi.invoiceHtml(invoiceNo);
-      printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-      };
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
+      await printSaleInvoice(invoiceNo);
     } catch (error) {
-      printWindow.close();
       toast.error(error instanceof Error ? error.message : "Failed to load the printable invoice.");
     } finally {
       setIsPrinting(false);
