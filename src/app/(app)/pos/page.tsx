@@ -34,6 +34,8 @@ import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
 import { salesApi } from "@/lib/api";
+import { buildInvoiceReceiptHtml } from "@/lib/invoice-receipt";
+import { printReceiptWithQz } from "@/lib/qz-print";
 
 interface CartLine {
   itemCode: string;
@@ -51,36 +53,10 @@ interface PaymentLine {
   amount: string;
 }
 
-async function printSaleInvoice(invoiceNo: string) {
-  const html = await salesApi.invoiceHtml(invoiceNo);
-  if (window.gestetnerDesktop?.isDesktop) {
-    await window.gestetnerDesktop.printInvoice(html);
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const printFrame = document.createElement("iframe");
-    printFrame.setAttribute("aria-hidden", "true");
-    Object.assign(printFrame.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
-    const cleanup = () => window.setTimeout(() => printFrame.remove(), 500);
-    printFrame.onerror = () => {
-      cleanup();
-      reject(new Error("The invoice print document could not be loaded."));
-    };
-    printFrame.onload = () => {
-      try {
-        printFrame.contentWindow?.focus();
-        printFrame.contentWindow?.print();
-        cleanup();
-        resolve();
-      } catch (error) {
-        cleanup();
-        reject(error);
-      }
-    };
-    document.body.appendChild(printFrame);
-    printFrame.srcdoc = html;
-  });
+async function printSaleInvoice(invoiceNo: string, tendered: number, change: number) {
+  const invoice = await salesApi.invoice(invoiceNo);
+  const html = buildInvoiceReceiptHtml(invoice, tendered, change);
+  await printReceiptWithQz(html, invoiceNo);
 }
 
 export default function PosTerminalPage() {
@@ -299,7 +275,7 @@ export default function PosTerminalPage() {
           setPaymentDialogOpen(false);
           setLastInvoice(null);
           resetCart();
-          void printSaleInvoice(sale.invoiceNo)
+          void printSaleInvoice(sale.invoiceNo, paidTotal, Math.max(0, paidTotal - total))
             .then(() => {
               toast.success(`Invoice ${sale.invoiceNo} printed successfully.`);
               searchRef.current?.focus();
@@ -599,7 +575,7 @@ function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: st
     if (!invoiceNo || isPrinting) return;
     setIsPrinting(true);
     try {
-      await printSaleInvoice(invoiceNo);
+      await printSaleInvoice(invoiceNo, tendered, change);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load the printable invoice.");
     } finally {
