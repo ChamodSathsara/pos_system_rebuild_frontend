@@ -149,9 +149,9 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
       {stock && <ReceiveStockDialog stockId={stock.stockId} open={receiveOpen} onOpenChange={setReceiveOpen} />}
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl">
-          <SheetHeader><SheetTitle>Stock Movement History</SheetTitle></SheetHeader>
-          <div className="mt-4 overflow-y-auto">
+        <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-2xl">
+          <SheetHeader className="shrink-0"><SheetTitle>Stock Movement History</SheetTitle></SheetHeader>
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
             <Table>
               <TableHeader>
                 <TableRow>
