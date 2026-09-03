@@ -68,6 +68,7 @@ export default function PosTerminalPage() {
   const [lastInvoice, setLastInvoice] = useState<string | null>(null);
   const [lastPaymentSummary, setLastPaymentSummary] = useState({ tendered: 0, change: 0 });
   const searchRef = useRef<HTMLInputElement>(null);
+  const paymentAmountRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedKeyword(query.trim()), 300);
@@ -198,7 +199,16 @@ export default function PosTerminalPage() {
   const updatePayment = (id: string, patch: Partial<PaymentLine>) => setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   const removePayment = (id: string) => setPayments((prev) => prev.filter((p) => p.id !== id));
 
-  const payExactCash = () => setPayments([{ id: crypto.randomUUID(), paymentMethod: "Cash", amount: total.toFixed(2) }]);
+  const setSingleCashPayment = (amount: number) => {
+    setPayments([{ id: crypto.randomUUID(), paymentMethod: "Cash", amount: amount.toFixed(2) }]);
+    requestAnimationFrame(() => {
+      paymentAmountRef.current?.focus();
+      paymentAmountRef.current?.select();
+    });
+  };
+
+  const payExactCash = () => setSingleCashPayment(total);
+  const roundedCashAmount = Math.ceil((total + 0.01) / 1000) * 1000;
 
   const openPaymentDialog = () => {
     if (cart.length === 0) {
@@ -403,56 +413,85 @@ export default function PosTerminalPage() {
       </div>
 
       <Dialog open={paymentDialogOpen} onOpenChange={(open) => !createSale.isPending && setPaymentDialogOpen(open)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Complete Payment</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Bill Discount</Label>
-              <Input type="number" min="0" step="0.01" value={billDiscount} onChange={(event) => setBillDiscount(Number(event.target.value) || 0)} />
-              <p className="text-xs text-muted-foreground">Item discounts already applied: {formatMoney(lineDiscounts)}</p>
+        <DialogContent
+          className="gap-0 overflow-hidden p-0 sm:max-w-[400px]"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            requestAnimationFrame(() => {
+              paymentAmountRef.current?.focus();
+              paymentAmountRef.current?.select();
+            });
+          }}
+        >
+          <DialogHeader className="border-b px-5 py-4 text-left">
+            <DialogTitle className="text-xl">Complete Payment</DialogTitle>
+            <p className="text-xs text-muted-foreground">{cart.length} {cart.length === 1 ? "item" : "items"} in this sale</p>
+          </DialogHeader>
+          <div className="space-y-3 px-5 py-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <Label htmlFor="bill-discount" className="font-semibold">Bill discount</Label>
+                <p className="text-[11px] text-muted-foreground">Item discounts already applied: {formatMoney(lineDiscounts)}</p>
+              </div>
+              <Input
+                id="bill-discount"
+                type="number"
+                min="0"
+                step="0.01"
+                className="h-9 w-24 text-right font-bold"
+                value={billDiscount}
+                onChange={(event) => setBillDiscount(Number(event.target.value) || 0)}
+              />
             </div>
 
-            <div className="space-y-1.5 rounded-lg border border-border p-3 text-sm">
+            <div className="space-y-2 rounded-xl bg-muted/70 p-4 text-sm">
               <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="num">{formatMoney(subtotal)}</span></div>
               <div className="flex justify-between text-muted-foreground"><span>Total Discounts</span><span className="num text-success">-{formatMoney(lineDiscounts + billDiscount)}</span></div>
               <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="num">{formatMoney(estTax)}</span></div>
-              <div className="flex items-end justify-between border-t border-border pt-3"><span className="font-semibold">Amount Due</span><span className="num text-2xl font-bold text-primary">{formatMoney(total)}</span></div>
+              <div className="flex items-end justify-between border-t border-border pt-3"><span className="font-bold">Amount due</span><span className="num text-2xl font-extrabold text-primary">{formatMoney(total)}</span></div>
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Payment Method & Amount *</Label>
-                <div className="flex gap-1">
-                  <Button type="button" size="xs" variant="secondary" onClick={payExactCash}><Banknote /> Full Cash</Button>
-                  <Button type="button" size="xs" variant="outline" onClick={() => addPayment()}><Plus /> Split</Button>
-                </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="secondary" className="border border-primary bg-primary/10 text-primary hover:bg-primary/15" onClick={payExactCash}>Full cash</Button>
+                <Button type="button" variant="outline" onClick={() => addPayment()}><Plus /> Split payment</Button>
               </div>
-              {payments.map((payment) => (
+              {payments.map((payment, index) => (
                 <div key={payment.id} className="flex items-center gap-2">
                   <Select value={payment.paymentMethod} onValueChange={(value) => updatePayment(payment.id, { paymentMethod: value as PaymentMethod })}>
-                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>{PaymentMethod.map((method) => <SelectItem key={method} value={method}>{method}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Input type="number" min="0" step="0.01" className="h-12 w-40 num text-lg font-bold" value={payment.amount} onChange={(event) => updatePayment(payment.id, { amount: event.target.value })} aria-label="Tendered amount" />
-                  <Button type="button" size="icon" variant="ghost" className="text-destructive" onClick={() => removePayment(payment.id)}><X /></Button>
+                  <div className="relative min-w-0 flex-1">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">Rs</span>
+                    <Input
+                      ref={index === 0 ? paymentAmountRef : undefined}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="h-11 pl-9 text-right num text-lg font-bold"
+                      value={payment.amount}
+                      onChange={(event) => updatePayment(payment.id, { amount: event.target.value })}
+                      aria-label="Payment amount"
+                    />
+                  </div>
+                  {payments.length > 1 && <Button type="button" size="icon" variant="ghost" className="shrink-0 text-destructive" onClick={() => removePayment(payment.id)}><X /></Button>}
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="rounded-lg border border-border bg-secondary/40 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tendered Amount</p>
-                  <p className="num mt-1 text-2xl font-bold text-foreground">{formatMoney(paidTotal)}</p>
-                </div>
-                <div className={`rounded-lg border p-3 ${balance > 0.01 ? "border-warning/40 bg-warning/10 text-warning" : "border-success/40 bg-success/10 text-success"}`}>
-                  <p className="text-xs font-medium uppercase tracking-wide">{balance > 0.01 ? "Balance Due" : balance < -0.01 ? "Change Due" : "Fully Paid"}</p>
-                  <p className="num mt-1 text-2xl font-bold">{formatMoney(Math.abs(balance))}</p>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" className="rounded-full text-xs" onClick={payExactCash}>Exact · {formatMoney(total)}</Button>
+                {roundedCashAmount > total && <Button type="button" size="sm" variant="outline" className="rounded-full text-xs" onClick={() => setSingleCashPayment(roundedCashAmount)}>{formatMoney(roundedCashAmount)}</Button>}
+              </div>
+              <div className={`flex items-center justify-between rounded-xl px-4 py-3 ${balance > 0.01 ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+                <span className="text-xs font-bold uppercase tracking-wide">{balance > 0.01 ? "Balance due" : balance < -0.01 ? "Change due" : "Fully paid"}</span>
+                <span className="num text-xl font-extrabold">{formatMoney(Math.abs(balance))}</span>
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t px-5 py-3 sm:justify-between">
             <Button type="button" variant="outline" disabled={createSale.isPending} onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-            <Button type="button" disabled={createSale.isPending || payments.length === 0 || balance > 0.01} onClick={checkout}>
-              {createSale.isPending ? <Loader2 className="animate-spin" /> : <ReceiptIcon />} Complete Payment
+            <Button type="button" className="sm:flex-1" disabled={createSale.isPending || payments.length === 0 || balance > 0.01} onClick={checkout}>
+              {createSale.isPending ? <Loader2 className="animate-spin" /> : <ReceiptIcon />} Complete payment · {formatMoney(total)}
             </Button>
           </DialogFooter>
         </DialogContent>
