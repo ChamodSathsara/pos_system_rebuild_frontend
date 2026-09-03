@@ -286,7 +286,14 @@ export default function ProductsPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Barcode</Label>
-            <Input {...form.register("barcode")} />
+            <Input
+              {...form.register("barcode")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
+              }}
+            />
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
