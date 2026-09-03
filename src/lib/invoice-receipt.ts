@@ -30,8 +30,6 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
       <td>${escapeHtml(item.itemName || item.itemCode)}</td>
       <td class="right">${amount(item.quantity).replace(".00", "")}</td>
       <td class="right">${amount(item.price)}</td>
-      <td class="right">${amount(item.lp)}</td>
-      <td class="right">${amount(item.amount)}</td>
     </tr>`).join("");
 
   const payments = invoice.payments.length > 1
@@ -44,22 +42,20 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
   @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
   html, body { width: 80mm; margin: 0; padding: 0; background: white; color: black; }
-  body { font-family: "Courier New", Consolas, monospace; font-size: 10.5px; font-weight: 500; line-height: 1.28; }
-  .receipt { width: 76mm; padding: 3mm 2mm 5mm; }
+  body { font-family: "Courier New", Consolas, monospace; font-size: 11.5px; font-weight: 700; line-height: 1.3; }
+  .receipt { width: 76mm; padding: 3mm 3mm 5mm 2mm; }
   .center { text-align: center; }
   .company { font-size: 16px; font-weight: 900; line-height: 1.15; }
-  .address { margin-top: 2px; font-size: 11px; }
+  .address { margin-top: 2px; font-size: 11.5px; font-weight: 700; }
   .rule { margin: 6px 0; border-top: 1px dashed black; }
   .row { display: flex; justify-content: space-between; gap: 6px; }
   .row span:last-child { min-width: 0; text-align: right; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-  th { padding: 0 1px 2px; border-bottom: 1px solid black; text-align: left; font-weight: 900; }
-  td { padding: 2px 1px; vertical-align: top; overflow-wrap: anywhere; }
-  th:nth-child(1), td:nth-child(1) { width: 29%; }
-  th:nth-child(2), td:nth-child(2) { width: 10%; }
-  th:nth-child(3), td:nth-child(3) { width: 20%; }
-  th:nth-child(4), td:nth-child(4) { width: 20%; }
-  th:nth-child(5), td:nth-child(5) { width: 21%; }
+  th { padding: 0 1px 3px; border-bottom: 1px solid black; text-align: left; font-weight: 900; }
+  td { padding: 3px 1px; vertical-align: top; overflow-wrap: anywhere; font-weight: 700; }
+  th:nth-child(1), td:nth-child(1) { width: 52%; }
+  th:nth-child(2), td:nth-child(2) { width: 13%; }
+  th:nth-child(3), td:nth-child(3) { width: 35%; }
   .right { text-align: right; white-space: nowrap; }
   .total { margin: 3px 0; padding: 2px 0; border-top: 1px solid black; border-bottom: 1px solid black; font-size: 17px; font-weight: 900; }
   .thanks { margin-top: 8px; font-size: 12px; line-height: 1.4; }
@@ -77,7 +73,7 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
     <div class="row"><span>CASHIER</span><span>${escapeHtml(invoice.cashierName || invoice.cashierCode)}</span></div>
   </section>
   <div class="rule"></div>
-  <table><thead><tr><th>ITEM</th><th class="right">QTY</th><th class="right">PRICE</th><th class="right">LP</th><th class="right">AMT</th></tr></thead><tbody>${items}</tbody></table>
+  <table><thead><tr><th>ITEM</th><th class="right">QTY</th><th class="right">PRICE</th></tr></thead><tbody>${items}</tbody></table>
   <div class="rule"></div>
   <div class="row"><span>SUB TOTAL</span><span>${amount(invoice.subtotal)}</span></div>
   ${invoice.discountAmount > 0 ? `<div class="row"><span>DISCOUNT</span><span>-${amount(invoice.discountAmount)}</span></div>` : ""}
