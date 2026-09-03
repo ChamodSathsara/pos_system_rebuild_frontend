@@ -18,7 +18,9 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const role = useAuthStore((s) => s.user?.roleName);
-  const [collapsed, setCollapsed] = useState(false);
+  const isPosTerminal = pathname === "/pos" || pathname.startsWith("/pos/");
+  const [manuallyCollapsed, setManuallyCollapsed] = useState(false);
+  const collapsed = isPosTerminal || manuallyCollapsed;
 
   return (
     <aside
@@ -28,10 +30,10 @@ export function Sidebar({
         className
       )}
     >
-      {collapsible && (
+      {collapsible && !isPosTerminal && (
         <button
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
+          onClick={() => setManuallyCollapsed((value) => !value)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
           className="absolute -right-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
