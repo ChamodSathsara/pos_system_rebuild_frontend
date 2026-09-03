@@ -20,6 +20,11 @@ import type {
   RecalculateCashierShiftRequest,
   UpdateDiscountRequest,
   UpdateExpenseRequest,
+  CurrentStockReportQuery,
+  ExpenseReportQuery,
+  ProfitReportQuery,
+  PurchaseReportQuery,
+  StockMovementReportQuery,
 } from "@/types";
 
 export const mq = {
@@ -33,6 +38,11 @@ export const mq = {
   summaryReport: (q: ReportQuery) => ["reports", "summary", q] as const,
   itemWiseReport: (q: ReportQuery) => ["reports", "item-wise", q] as const,
   returnsReport: (q: ReportQuery) => ["reports", "returns", q] as const,
+  currentStockReport: (q: CurrentStockReportQuery) => ["reports", "current-stock", q] as const,
+  stockMovementReport: (q: StockMovementReportQuery) => ["reports", "stock-movements", q] as const,
+  purchaseReport: (q: PurchaseReportQuery) => ["reports", "purchases", q] as const,
+  expenseReport: (q: ExpenseReportQuery) => ["reports", "expense-report", q] as const,
+  profitReport: (q: ProfitReportQuery) => ["reports", "profit", q] as const,
 };
 
 // Discounts
@@ -144,4 +154,19 @@ export function useItemWiseSalesReport(q: ReportQuery, enabled = true) {
 }
 export function useSalesReturnReport(q: ReportQuery, enabled = true) {
   return useQuery({ queryKey: mq.returnsReport(q), queryFn: () => reportsApi.returns(q), enabled });
+}
+export function useCurrentStockReport(q: CurrentStockReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.currentStockReport(q), queryFn: () => reportsApi.currentStock(q), enabled });
+}
+export function useStockMovementReport(q: StockMovementReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.stockMovementReport(q), queryFn: () => reportsApi.stockMovements(q), enabled });
+}
+export function usePurchaseReport(q: PurchaseReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.purchaseReport(q), queryFn: () => reportsApi.purchases(q), enabled });
+}
+export function useExpenseReport(q: ExpenseReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.expenseReport(q), queryFn: () => reportsApi.expenses(q), enabled });
+}
+export function useProfitReport(q: ProfitReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.profitReport(q), queryFn: () => reportsApi.profit(q), enabled });
 }

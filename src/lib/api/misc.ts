@@ -21,6 +21,16 @@ import type {
   SalesSummaryReport,
   UpdateDiscountRequest,
   UpdateExpenseRequest,
+  CurrentStockReport,
+  CurrentStockReportQuery,
+  ExpenseReport,
+  ExpenseReportQuery,
+  ProfitReport,
+  ProfitReportQuery,
+  PurchaseReport,
+  PurchaseReportQuery,
+  StockMovementReport,
+  StockMovementReportQuery,
 } from "@/types";
 
 export const discountsApi = {
@@ -75,6 +85,16 @@ export interface ReportQuery {
 }
 
 export const reportsApi = {
+  currentStock: (q: CurrentStockReportQuery) =>
+    api.get<CurrentStockReport>("/api/reports/stock/current", { params: cleanParams({ ...q }) }),
+  stockMovements: (q: StockMovementReportQuery) =>
+    api.get<StockMovementReport>("/api/reports/stock/movements", { params: cleanParams({ ...q }) }),
+  purchases: (q: PurchaseReportQuery) =>
+    api.get<PurchaseReport>("/api/reports/purchases", { params: cleanParams({ ...q }) }),
+  expenses: (q: ExpenseReportQuery) =>
+    api.get<ExpenseReport>("/api/reports/expenses", { params: cleanParams({ ...q }) }),
+  profit: (q: ProfitReportQuery) =>
+    api.get<ProfitReport>("/api/reports/profit", { params: cleanParams({ ...q }) }),
   daily: (q: ReportQuery) => api.get<DailySalesReport>("/api/reports/sales/daily", { params: cleanParams({ ...q }) }),
   summary: (q: ReportQuery) =>
     api.get<SalesSummaryReport>("/api/reports/sales/summary", { params: cleanParams({ ...q }) }),

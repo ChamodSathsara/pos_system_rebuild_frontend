@@ -8,7 +8,7 @@ import { BranchFilter } from "@/components/shared/branch-filter";
 import { DataTable } from "@/components/shared/data-table";
 import { StatCard } from "@/components/shared/stat-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import { ErrorState } from "@/components/shared/error-state";
 import { useDailySalesReport, useItemWiseSalesReport, useSalesReturnReport, useSalesSummaryReport } from "@/hooks/use-misc";
 import { reportsApi, type ReportQuery } from "@/lib/api";
 import { useEffectiveBranchCode } from "@/store/auth-store";
+import { useAuthStore } from "@/store/auth-store";
+import { canAccessReports } from "@/lib/permissions";
+import { CurrentStockTab, ExpensesTab, ProfitTab, PurchasesTab, StockMovementsTab } from "@/components/reports/operational-report-tabs";
 import { formatDate, formatMoney, formatNumber, toDateOnly } from "@/lib/format";
 import type { DailySalesReportRow, ItemWiseSalesReportLine, SalesReturnReportLine } from "@/types";
 import { Receipt, ShoppingBag, TrendingDown, TrendingUp } from "lucide-react";
@@ -30,9 +33,12 @@ function defaultRange() {
 }
 
 export default function ReportsPage() {
+  const user = useAuthStore((state) => state.user);
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
+  const operationalBranchCode = user?.roleName === "Branch_Manager" ? undefined : branchFilter;
   const [range, setRange] = useState(defaultRange());
+  const datesValid = !!range.fromDate && !!range.toDate && range.toDate >= range.fromDate;
   const query: ReportQuery = { ...range, branchCode };
 
   const [exporting, setExporting] = useState(false);
@@ -47,11 +53,15 @@ export default function ReportsPage() {
     }
   };
 
+  if (!canAccessReports(user?.roleName)) {
+    return <ErrorState message="Access denied: cashiers do not have report access." />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Sales Reports"
-        description="Daily trends, summaries, item performance, and returns."
+        title="Reports"
+        description="Sales, stock, purchasing, expenses, and profitability insights."
         actions={<BranchFilter value={branchFilter} onChange={setBranchFilter} />}
       />
 
@@ -63,18 +73,24 @@ export default function ReportsPage() {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">To</Label>
-            <Input type="date" value={range.toDate} onChange={(e) => setRange((r) => ({ ...r, toDate: e.target.value }))} className="w-40" />
+            <Input type="date" min={range.fromDate} value={range.toDate} onChange={(e) => setRange((r) => ({ ...r, toDate: e.target.value }))} className="w-40" />
           </div>
+          {!datesValid && <p className="pb-2 text-sm font-medium text-destructive">To date must be on or after from date.</p>}
         </div>
       </Card>
 
       <Tabs defaultValue="summary">
         <div className="flex items-center justify-between">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap justify-start">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="daily">Daily</TabsTrigger>
             <TabsTrigger value="items">Item-wise</TabsTrigger>
             <TabsTrigger value="returns">Returns</TabsTrigger>
+            <TabsTrigger value="current-stock">Current Stock</TabsTrigger>
+            <TabsTrigger value="movements">Stock Movements</TabsTrigger>
+            <TabsTrigger value="purchases">Purchases</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="profit">Profit</TabsTrigger>
           </TabsList>
         </div>
 
@@ -82,6 +98,11 @@ export default function ReportsPage() {
         <TabsContent value="daily"><DailyTab query={query} onExport={doExport} exporting={exporting} /></TabsContent>
         <TabsContent value="items"><ItemWiseTab query={query} onExport={doExport} exporting={exporting} /></TabsContent>
         <TabsContent value="returns"><ReturnsTab query={query} onExport={doExport} exporting={exporting} /></TabsContent>
+        <TabsContent value="current-stock"><CurrentStockTab branchCode={operationalBranchCode} warehouseBranchCode={branchCode} /></TabsContent>
+        <TabsContent value="movements"><StockMovementsTab branchCode={operationalBranchCode} warehouseBranchCode={branchCode} {...range} datesValid={datesValid} /></TabsContent>
+        <TabsContent value="purchases"><PurchasesTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
+        <TabsContent value="expenses"><ExpensesTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
+        <TabsContent value="profit"><ProfitTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
       </Tabs>
     </div>
   );
