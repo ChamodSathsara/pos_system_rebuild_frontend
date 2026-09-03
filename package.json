@@ -1,12 +1,19 @@
 {
   "name": "pos-frontend",
   "version": "0.1.0",
+  "description": "Gestetner point-of-sale desktop application",
+  "author": "Gestetner",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "electron:launch": "electron electron/main.cjs",
+    "electron:dev": "concurrently --kill-others-on-fail \"npm:dev\" \"npm:electron:launch\"",
+    "electron:prepare": "node scripts/prepare-electron.mjs",
+    "electron:build": "npm run build && npm run electron:prepare && electron-builder --win nsis"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -53,9 +60,60 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.5",
+    "electron": "^44.1.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "build": {
+    "appId": "com.gestetner.pos",
+    "productName": "Gestetner POS",
+    "artifactName": "Gestetner-POS-Setup-${version}.${ext}",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "next-server",
+        "filter": [
+          "**/*",
+          "!node_modules{,/**/*}"
+        ]
+      },
+      {
+        "from": ".next/standalone/node_modules",
+        "to": "next-server/node_modules",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Gestetner POS",
+      "uninstallDisplayName": "Gestetner POS"
+    }
   }
 }

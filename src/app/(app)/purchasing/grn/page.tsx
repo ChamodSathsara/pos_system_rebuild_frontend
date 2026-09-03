@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { FormDialog } from "@/components/shared/form-dialog";
@@ -28,10 +28,7 @@ function GrnPageInner() {
   const branchCode = useEffectiveBranchCode(branchFilter);
   const { data, isLoading, isError, refetch } = useGrns({ branchCode });
 
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (prefillPoNo) setOpen(true);
-  }, [prefillPoNo]);
+  const [open, setOpen] = useState(!!prefillPoNo);
 
   const columns = useMemo<ColumnDef<Grn>[]>(
     () => [

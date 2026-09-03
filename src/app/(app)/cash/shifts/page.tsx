@@ -62,7 +62,7 @@ export default function CashierShiftsPage() {
         ),
       },
     ],
-    [user?.userCode]
+    [user?.userCode, setCloseTarget, setHistoryFor]
   );
 
   return (
@@ -172,7 +172,7 @@ function CloseShiftDialog({ shift, onClose }: { shift: CashierShift | null; onCl
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Reason (if there's a difference)</Label>
+          <Label>Reason (if there&apos;s a difference)</Label>
           <Select value={form.watch("reasonType")} onValueChange={(v) => form.setValue("reasonType", v as ShiftDifferenceReasonType)}>
             <SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger>
             <SelectContent>
