@@ -69,6 +69,7 @@ export default function PosTerminalPage() {
   const [lastPaymentSummary, setLastPaymentSummary] = useState({ tendered: 0, change: 0 });
   const searchRef = useRef<HTMLInputElement>(null);
   const paymentAmountRef = useRef<HTMLInputElement>(null);
+  const completePaymentButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedKeyword(query.trim()), 300);
@@ -472,6 +473,13 @@ export default function PosTerminalPage() {
                       className="h-11 pl-9 text-right num text-lg font-bold"
                       value={payment.amount}
                       onChange={(event) => updatePayment(payment.id, { amount: event.target.value })}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        if (balance <= 0.01) {
+                          completePaymentButtonRef.current?.focus();
+                        }
+                      }}
                       aria-label="Payment amount"
                     />
                   </div>
@@ -488,9 +496,9 @@ export default function PosTerminalPage() {
               </div>
             </div>
           </div>
-          <DialogFooter className="border-t px-5 py-3 sm:justify-between">
+          <DialogFooter className="grid grid-cols-[auto_1fr] gap-2 border-t px-5 py-3">
             <Button type="button" variant="outline" disabled={createSale.isPending} onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-            <Button type="button" className="sm:flex-1" disabled={createSale.isPending || payments.length === 0 || balance > 0.01} onClick={checkout}>
+            <Button ref={completePaymentButtonRef} type="button" className="w-full" disabled={createSale.isPending || payments.length === 0 || balance > 0.01} onClick={checkout}>
               {createSale.isPending ? <Loader2 className="animate-spin" /> : <ReceiptIcon />} Complete payment · {formatMoney(total)}
             </Button>
           </DialogFooter>
