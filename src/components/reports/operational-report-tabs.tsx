@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ import { useVendors } from "@/hooks/use-party";
 import { useCurrentStockReport, useExpenseCategories, useExpenseReport, useProfitReport, usePurchaseReport, useStockMovementReport } from "@/hooks/use-misc";
 import { ApiError } from "@/lib/api/client";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { downloadReport, type ReportFormat } from "@/lib/report-download";
+import { toast } from "sonner";
 import { PurchaseOrderStatus, StockMovementType, StockReferenceType } from "@/types";
 import type { CurrentStockReportLine, ExpenseReportLine, PurchaseReportLine, StockMovementReportLine } from "@/types";
 
@@ -31,6 +34,29 @@ function FilterSelect({ label, value, onChange, children, className = "w-44" }: 
 
 function Summaries({ values }: { values: Array<{ label: string; value: string; tone?: string }> }) {
   return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{values.map((item) => <Card key={item.label} className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p><p className={`num mt-2 text-xl font-bold ${item.tone ?? ""}`}>{item.value}</p></Card>)}</div>;
+}
+
+function DownloadButtons({ endpoint, params, fileName, disabled = false }: { endpoint: string; params: Record<string, unknown>; fileName: string; disabled?: boolean }) {
+  const [downloading, setDownloading] = useState<ReportFormat | null>(null);
+  const locked = useRef(false);
+  const download = async (format: ReportFormat) => {
+    if (locked.current) return;
+    locked.current = true;
+    setDownloading(format);
+    try {
+      await downloadReport(`${endpoint}/${format}`, params, format, fileName);
+      toast.success(`${format === "pdf" ? "PDF" : "Excel"} report downloaded successfully.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download the report.");
+    } finally {
+      locked.current = false;
+      setDownloading(null);
+    }
+  };
+  return <div className="ml-auto flex gap-2">
+    <Button type="button" variant="outline" size="sm" disabled={disabled || !!downloading} onClick={() => download("pdf")}>{downloading === "pdf" ? <Loader2 className="animate-spin" /> : <FileText />} Download PDF</Button>
+    <Button type="button" variant="outline" size="sm" disabled={disabled || !!downloading} onClick={() => download("excel")}>{downloading === "excel" ? <Loader2 className="animate-spin" /> : <FileSpreadsheet />} Download Excel</Button>
+  </div>;
 }
 
 export function CurrentStockTab({ branchCode, warehouseBranchCode }: Pick<ReportScope, "branchCode" | "warehouseBranchCode">) {
@@ -54,6 +80,7 @@ export function CurrentStockTab({ branchCode, warehouseBranchCode }: Pick<Report
     <FilterSelect label="Category" value={categoryId} onChange={setCategoryId}>{categories?.map((c) => <SelectItem key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</SelectItem>)}</FilterSelect>
     <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={onlyAvailable} onChange={(e) => setOnlyAvailable(e.target.checked)} /> Available only</label>
     <label className="flex h-9 items-center gap-2 text-sm"><input type="checkbox" checked={onlyBelow} onChange={(e) => setOnlyBelow(e.target.checked)} /> Below reorder only</label>
+    <DownloadButtons endpoint="/api/reports/stock/current" params={{ branchCode, warehouseCode, itemCode, categoryId: categoryId ? Number(categoryId) : undefined, onlyAvailable, onlyBelowReorderLevel: onlyBelow }} fileName="current-stock-report" />
   </Card>{query.data && <Summaries values={[{ label: "Total Quantity", value: qty(query.data.totalQuantity) }, { label: "Total Stock Value", value: formatMoney(query.data.totalStockValue), tone: "text-primary" }, { label: "Generated", value: formatDateTime(query.data.generatedAt) }, { label: "Items", value: qty(query.data.items.length) }]} />}
   <DataTable columns={columns} data={query.data?.items ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search stock items…" emptyTitle="No stock matches these filters" pageSize={15} /></div>;
 }
@@ -69,6 +96,7 @@ export function StockMovementsTab({ branchCode, warehouseBranchCode, fromDate, t
     { accessorKey: "newQty", header: "New Qty", cell: ({ row }) => <span className="num">{qty(row.original.newQty)}</span> }, { accessorKey: "movementValue", header: "Value", cell: ({ row }) => <span className="num">{formatMoney(row.original.movementValue)}</span> },
   ], []);
   return <div className="mt-4 space-y-4"><Card className="flex flex-wrap items-end gap-3 p-4"><FilterSelect label="Warehouse" value={warehouseCode} onChange={setWarehouseCode}>{warehouses?.map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName}</SelectItem>)}</FilterSelect><FilterSelect label="Item" value={itemCode} onChange={setItemCode} className="w-56">{products?.map((p) => <SelectItem key={p.itemCode} value={p.itemCode}>{p.itemName} ({p.itemCode})</SelectItem>)}</FilterSelect><FilterSelect label="Movement" value={movementType} onChange={setMovementType}>{StockMovementType.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</FilterSelect><FilterSelect label="Reference Type" value={referenceType} onChange={setReferenceType}>{StockReferenceType.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</FilterSelect><div className="space-y-1.5"><Label className="text-xs">Reference No.</Label><Input className="w-44" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} /></div></Card>
+  <div className="flex"><DownloadButtons endpoint="/api/reports/stock/movements" params={{ fromDate, toDate, branchCode, warehouseCode, itemCode, movementType, referenceType, referenceNo }} fileName={`stock-movements-${fromDate}-${toDate}`} disabled={!datesValid} /></div>
   {query.data && <Summaries values={[{ label: "Total In Qty", value: qty(query.data.totalInQty), tone: "text-success" }, { label: "Total Out Qty", value: qty(query.data.totalOutQty), tone: "text-warning" }, { label: "Total In Value", value: formatMoney(query.data.totalInValue) }, { label: "Total Out Value", value: formatMoney(query.data.totalOutValue) }]} />}<DataTable columns={columns} data={query.data?.movements ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search movements…" emptyTitle="No stock movements in this range" pageSize={15} /></div>;
 }
 
@@ -81,7 +109,16 @@ export function PurchasesTab({ branchCode, fromDate, toDate, datesValid }: Repor
     { accessorKey: "orderedQty", header: "Ordered", cell: ({ row }) => qty(row.original.orderedQty) }, { accessorKey: "receivedQty", header: "Received", cell: ({ row }) => qty(row.original.receivedQty) }, { accessorKey: "outstandingQty", header: "Outstanding", cell: ({ row }) => qty(row.original.outstandingQty) },
     { accessorKey: "netPurchaseValue", header: "Net Value", cell: ({ row }) => <span className="num font-semibold">{formatMoney(row.original.netPurchaseValue)}</span> },
   ], []);
-  return <div className="mt-4 space-y-4"><Card className="flex flex-wrap items-end gap-3 p-4"><FilterSelect label="Vendor" value={vendorId} onChange={setVendorId}>{vendors?.map((v) => <SelectItem key={v.vendorId} value={String(v.vendorId)}>{v.vendorName}</SelectItem>)}</FilterSelect><FilterSelect label="Item" value={itemCode} onChange={setItemCode} className="w-56">{products?.map((p) => <SelectItem key={p.itemCode} value={p.itemCode}>{p.itemName} ({p.itemCode})</SelectItem>)}</FilterSelect><FilterSelect label="Status" value={status} onChange={setStatus}>{PurchaseOrderStatus.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</FilterSelect></Card>{query.data && <Summaries values={[{ label: "Ordered Value", value: formatMoney(query.data.totalOrderedValue) }, { label: "Received Value", value: formatMoney(query.data.totalReceivedValue) }, { label: "Return Value", value: formatMoney(query.data.totalReturnValue) }, { label: "Net Purchase Value", value: formatMoney(query.data.totalNetPurchaseValue), tone: "text-primary" }]} />}<DataTable columns={columns} data={query.data?.items ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search purchases…" emptyTitle="No purchases in this range" pageSize={15} /></div>;
+  return <div className="mt-4 space-y-4">
+    <Card className="flex flex-wrap items-end gap-3 p-4">
+      <FilterSelect label="Vendor" value={vendorId} onChange={setVendorId}>{vendors?.map((vendor) => <SelectItem key={vendor.vendorId} value={String(vendor.vendorId)}>{vendor.vendorName}</SelectItem>)}</FilterSelect>
+      <FilterSelect label="Item" value={itemCode} onChange={setItemCode} className="w-56">{products?.map((product) => <SelectItem key={product.itemCode} value={product.itemCode}>{product.itemName} ({product.itemCode})</SelectItem>)}</FilterSelect>
+      <FilterSelect label="Status" value={status} onChange={setStatus}>{PurchaseOrderStatus.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</FilterSelect>
+      <DownloadButtons endpoint="/api/reports/purchases" params={{ fromDate, toDate, branchCode, vendorId: vendorId ? Number(vendorId) : undefined, itemCode, status }} fileName={`purchases-report-${fromDate}-${toDate}`} disabled={!datesValid} />
+    </Card>
+    {query.data && <Summaries values={[{ label: "Ordered Value", value: formatMoney(query.data.totalOrderedValue) }, { label: "Received Value", value: formatMoney(query.data.totalReceivedValue) }, { label: "Return Value", value: formatMoney(query.data.totalReturnValue) }, { label: "Net Purchase Value", value: formatMoney(query.data.totalNetPurchaseValue), tone: "text-primary" }]} />}
+    <DataTable columns={columns} data={query.data?.items ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search purchases..." emptyTitle="No purchases in this range" pageSize={15} />
+  </div>;
 }
 
 export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: ReportScope) {
@@ -101,6 +138,7 @@ export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: Report
     <Card className="flex flex-wrap items-end gap-3 p-4">
       <FilterSelect label="Category" value={categoryId} onChange={setCategoryId}>{categories?.map((c) => <SelectItem key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</SelectItem>)}</FilterSelect>
       <div className="space-y-1.5"><Label className="text-xs">Paid By</Label><Input className="w-48" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} placeholder="User/code" /></div>
+      <DownloadButtons endpoint="/api/reports/expenses" params={{ fromDate, toDate, branchCode, categoryId: categoryId ? Number(categoryId) : undefined, paidBy }} fileName={`expenses-report-${fromDate}-${toDate}`} disabled={!datesValid} />
     </Card>
     {query.data && <><Summaries values={[{ label: "Expense Count", value: qty(query.data.totalExpenseCount) }, { label: "Total Expenses", value: formatMoney(query.data.totalExpenseAmount), tone: "text-warning" }]} />
       {query.data.categorySummary.length > 0 && <Card className="flex flex-wrap gap-x-6 gap-y-2 p-4 text-sm">{query.data.categorySummary.map((category) => <span key={category.categoryId ?? category.categoryName}><span className="font-medium">{category.categoryName || "Uncategorized"}</span>: {formatMoney(category.totalAmount)} ({category.expenseCount})</span>)}</Card>}
@@ -111,9 +149,14 @@ export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: Report
 
 export function ProfitTab({ branchCode, fromDate, toDate, datesValid }: ReportScope) {
   const query = useProfitReport({ fromDate, toDate, branchCode }, datesValid);
-  if (query.isLoading) return <div className="mt-4"><Card className="h-40 animate-pulse" /></div>;
-  if (query.isError) return <div className="mt-4"><ErrorState message={errorText(query.error)} onRetry={query.refetch} /></div>;
-  if (!query.data) return <div className="mt-4"><ErrorState message="No profit data is available for this range." /></div>;
-  const data = query.data;
-  return <div className="mt-4 space-y-4"><Summaries values={[{ label: "Gross Sales (Excl. Tax)", value: formatMoney(data.grossSalesExcludingTax) }, { label: "Net Revenue", value: formatMoney(data.netRevenue), tone: "text-primary" }, { label: "Cost of Goods Sold", value: formatMoney(data.netCostOfGoodsSold) }, { label: "Gross Profit", value: formatMoney(data.grossProfit), tone: "text-success" }, { label: "Expenses", value: formatMoney(data.expenseTotal), tone: "text-warning" }, { label: "Net Profit", value: formatMoney(data.netProfit), tone: data.netProfit >= 0 ? "text-success" : "text-destructive" }, { label: "Gross Margin", value: `${qty(data.grossProfitMarginPercentage)}%` }, { label: "Returns / Discounts", value: `${formatMoney(data.salesReturnTotal)} / ${formatMoney(data.discountTotal)}` }]} /><Card className="grid gap-3 p-5 text-sm sm:grid-cols-2"><div className="row flex justify-between"><span>Sold cost</span><strong>{formatMoney(data.soldCost)}</strong></div><div className="flex justify-between"><span>Returned cost</span><strong>{formatMoney(data.returnedCost)}</strong></div></Card></div>;
+  return <div className="mt-4 space-y-4">
+    <div className="flex"><DownloadButtons endpoint="/api/reports/profit" params={{ fromDate, toDate, branchCode }} fileName={`profit-report-${fromDate}-${toDate}`} disabled={!datesValid} /></div>
+    {query.isLoading && <Card className="h-40 animate-pulse" />}
+    {query.isError && <ErrorState message={errorText(query.error)} onRetry={query.refetch} />}
+    {!query.isLoading && !query.isError && !query.data && <ErrorState message="No profit data is available for this range." />}
+    {query.data && <>
+      <Summaries values={[{ label: "Gross Sales (Excl. Tax)", value: formatMoney(query.data.grossSalesExcludingTax) }, { label: "Net Revenue", value: formatMoney(query.data.netRevenue), tone: "text-primary" }, { label: "Cost of Goods Sold", value: formatMoney(query.data.netCostOfGoodsSold) }, { label: "Gross Profit", value: formatMoney(query.data.grossProfit), tone: "text-success" }, { label: "Expenses", value: formatMoney(query.data.expenseTotal), tone: "text-warning" }, { label: "Net Profit", value: formatMoney(query.data.netProfit), tone: query.data.netProfit >= 0 ? "text-success" : "text-destructive" }, { label: "Gross Margin", value: `${qty(query.data.grossProfitMarginPercentage)}%` }, { label: "Returns / Discounts", value: `${formatMoney(query.data.salesReturnTotal)} / ${formatMoney(query.data.discountTotal)}` }]} />
+      <Card className="grid gap-3 p-5 text-sm sm:grid-cols-2"><div className="row flex justify-between"><span>Sold cost</span><strong>{formatMoney(query.data.soldCost)}</strong></div><div className="flex justify-between"><span>Returned cost</span><strong>{formatMoney(query.data.returnedCost)}</strong></div></Card>
+    </>}
+  </div>;
 }
