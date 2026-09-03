@@ -12,16 +12,23 @@ const escapeHtml = (value: string | null | undefined) =>
     .replaceAll("'", "&#039;");
 
 const formatInvoiceDate = (value: string | null | undefined) => {
-  const date = value ? new Date(value) : new Date();
+  const rawValue = value?.trim();
+  const isIsoWithoutTimezone = !!rawValue
+    && /^\d{4}-\d{2}-\d{2}T/.test(rawValue)
+    && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawValue);
+  const date = rawValue ? new Date(isIsoWithoutTimezone ? `${rawValue}Z` : rawValue) : new Date();
   if (Number.isNaN(date.getTime())) return escapeHtml(value);
-  return new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+    timeZone: "Asia/Colombo",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)?.value ?? "";
+  return `${part("day")}/${part("month")}/${part("year")} ${part("hour")}:${part("minute")} ${part("dayPeriod")}`;
 };
 
 export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, change: number) {
@@ -43,7 +50,7 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
   * { box-sizing: border-box; }
   html, body { width: 80mm; margin: 0; padding: 0; background: white; color: black; }
   body { font-family: "Courier New", Consolas, monospace; font-size: 11.5px; font-weight: 700; line-height: 1.3; }
-  .receipt { width: 76mm; padding: 3mm 3mm 5mm 2mm; }
+  .receipt { width: 72mm; margin: 0; padding: 0 4mm 5mm 1mm; }
   .center { text-align: center; }
   .company { font-size: 16px; font-weight: 900; line-height: 1.15; }
   .address { margin-top: 2px; font-size: 11.5px; font-weight: 700; }
@@ -84,6 +91,7 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
   <div class="rule"></div>
   <div>Customer : ${escapeHtml(invoice.customerName || "Walk-in Customer")}</div>
   <div class="rule"></div>
-  <footer class="center thanks">★ Thank You! ★<br>Please Come Again</footer>
+  <footer class="center thanks">* Thank You! *<br>Please Come Again</footer>
+  <footer class="center thanks">* visit : *<br>www.gestetner.lk</footer>
 </main></body></html>`;
 }
