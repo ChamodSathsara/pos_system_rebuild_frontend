@@ -10,16 +10,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/data-table";
 import { ErrorState } from "@/components/shared/error-state";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { useProducts, useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
 import { useVendors } from "@/hooks/use-party";
-import { useCurrentStockReport, useExpenseCategories, useExpenseReport, useProfitReport, usePurchaseReport, useStockMovementReport } from "@/hooks/use-misc";
+import { useCurrentStockReport, useDamageItemReport, useExpenseCategories, useExpenseReport, useProfitReport, usePurchaseReport, useStockMovementReport } from "@/hooks/use-misc";
 import { ApiError } from "@/lib/api/client";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { downloadReport, type ReportFormat } from "@/lib/report-download";
 import { toast } from "sonner";
-import { PurchaseOrderStatus, StockMovementType, StockReferenceType } from "@/types";
-import type { CurrentStockReportLine, ExpenseReportLine, PurchaseReportLine, StockMovementReportLine } from "@/types";
+import { DamageItemStatus, PurchaseOrderStatus, StockMovementType, StockReferenceType } from "@/types";
+import type { CurrentStockReportLine, DamageItemReportLine, ExpenseReportLine, PurchaseReportLine, StockMovementReportLine } from "@/types";
 
 interface ReportScope { branchCode?: string; warehouseBranchCode?: string; fromDate: string; toDate: string; datesValid: boolean; }
 const ALL = "__all__";
@@ -144,6 +145,50 @@ export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: Report
       {query.data.categorySummary.length > 0 && <Card className="flex flex-wrap gap-x-6 gap-y-2 p-4 text-sm">{query.data.categorySummary.map((category) => <span key={category.categoryId ?? category.categoryName}><span className="font-medium">{category.categoryName || "Uncategorized"}</span>: {formatMoney(category.totalAmount)} ({category.expenseCount})</span>)}</Card>}
     </>}
     <DataTable columns={columns} data={query.data?.expenses ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search expenses..." emptyTitle="No expenses in this range" pageSize={15} />
+  </div>;
+}
+
+export function DamagedItemsTab({ branchCode, warehouseBranchCode, fromDate, toDate, datesValid }: ReportScope) {
+  const [warehouseCode, setWarehouseCode] = useState("");
+  const [itemCode, setItemCode] = useState("");
+  const [status, setStatus] = useState("");
+  const { data: products } = useProducts();
+  const { data: warehouses } = useWarehouses(warehouseBranchCode);
+  const params = {
+    fromDate,
+    toDate,
+    branchCode,
+    warehouseCode: warehouseCode || undefined,
+    itemCode: itemCode || undefined,
+    status: status ? status as DamageItemStatus : undefined,
+  };
+  const query = useDamageItemReport(params, datesValid);
+  const columns = useMemo<ColumnDef<DamageItemReportLine>[]>(() => [
+    { accessorKey: "damageDate", header: "Date", cell: ({ row }) => formatDate(row.original.damageDate) },
+    { accessorKey: "itemName", header: "Item", cell: ({ row }) => <div><p className="font-medium">{row.original.itemName || row.original.itemCode || "-"}</p><p className="text-xs text-muted-foreground">{row.original.itemCode || "No item code"}</p></div> },
+    { accessorKey: "branchName", header: "Branch", cell: ({ row }) => row.original.branchName || row.original.branchCode || "-" },
+    { accessorKey: "warehouseName", header: "Warehouse", cell: ({ row }) => row.original.warehouseName || row.original.warehouseCode || "-" },
+    { accessorKey: "quantity", header: "Qty", cell: ({ row }) => <span className="num">{qty(row.original.quantity)}</span> },
+    { accessorKey: "costAmount", header: "Damage Cost", cell: ({ row }) => <span className="num font-semibold">{formatMoney(row.original.costAmount)}</span> },
+    { accessorKey: "reason", header: "Reason", cell: ({ row }) => row.original.reason || "-" },
+    { accessorKey: "reportedByName", header: "Reported By", cell: ({ row }) => row.original.reportedByName || row.original.reportedBy || "-" },
+    { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} /> },
+  ], []);
+
+  return <div className="mt-4 space-y-4">
+    <Card className="flex flex-wrap items-end gap-3 p-4">
+      <FilterSelect label="Warehouse" value={warehouseCode} onChange={setWarehouseCode}>{warehouses?.map((warehouse) => <SelectItem key={warehouse.warehouseCode} value={warehouse.warehouseCode}>{warehouse.warehouseName} ({warehouse.warehouseCode})</SelectItem>)}</FilterSelect>
+      <FilterSelect label="Item" value={itemCode} onChange={setItemCode} className="w-56">{products?.map((product) => <SelectItem key={product.itemCode} value={product.itemCode}>{product.itemName} ({product.itemCode})</SelectItem>)}</FilterSelect>
+      <FilterSelect label="Status" value={status} onChange={setStatus}>{DamageItemStatus.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</FilterSelect>
+      <DownloadButtons endpoint="/api/reports/damage-items" params={params} fileName={`damage-items-${fromDate}-${toDate}`} disabled={!datesValid} />
+    </Card>
+    {query.data && <Summaries values={[
+      { label: "Damage Records", value: qty(query.data.totalDamageCount) },
+      { label: "Total Quantity", value: qty(query.data.totalQuantity), tone: "text-warning" },
+      { label: "Total Damage Cost", value: formatMoney(query.data.totalDamageCost), tone: "text-destructive" },
+      { label: "Date Range", value: `${formatDate(query.data.fromDate)} - ${formatDate(query.data.toDate)}` },
+    ]} />}
+    <DataTable columns={columns} data={query.data?.items ?? []} isLoading={query.isLoading} error={query.isError ? errorText(query.error) : null} onRetry={query.refetch} searchPlaceholder="Search damaged items..." emptyTitle="No damaged items in this range" emptyDescription="No damage records match the selected filters." pageSize={15} />
   </div>;
 }
 

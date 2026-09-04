@@ -19,7 +19,7 @@ import { reportsApi, type ReportQuery } from "@/lib/api";
 import { useEffectiveBranchCode } from "@/store/auth-store";
 import { useAuthStore } from "@/store/auth-store";
 import { canAccessReports } from "@/lib/permissions";
-import { CurrentStockTab, ExpensesTab, ProfitTab, PurchasesTab, StockMovementsTab } from "@/components/reports/operational-report-tabs";
+import { CurrentStockTab, DamagedItemsTab, ExpensesTab, ProfitTab, PurchasesTab, StockMovementsTab } from "@/components/reports/operational-report-tabs";
 import { formatDate, formatMoney, formatNumber, toDateOnly } from "@/lib/format";
 import type { DailySalesReportRow, ItemWiseSalesReportLine, SalesReturnReportLine } from "@/types";
 import { Receipt, ShoppingBag, TrendingDown, TrendingUp } from "lucide-react";
@@ -90,6 +90,7 @@ export default function ReportsPage() {
             <TabsTrigger value="movements">Stock Movements</TabsTrigger>
             <TabsTrigger value="purchases">Purchases</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="damaged-items">Damaged Items</TabsTrigger>
             <TabsTrigger value="profit">Profit</TabsTrigger>
           </TabsList>
         </div>
@@ -102,6 +103,7 @@ export default function ReportsPage() {
         <TabsContent value="movements"><StockMovementsTab branchCode={operationalBranchCode} warehouseBranchCode={branchCode} {...range} datesValid={datesValid} /></TabsContent>
         <TabsContent value="purchases"><PurchasesTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
         <TabsContent value="expenses"><ExpensesTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
+        <TabsContent value="damaged-items"><DamagedItemsTab branchCode={branchCode} warehouseBranchCode={branchCode} {...range} datesValid={datesValid} /></TabsContent>
         <TabsContent value="profit"><ProfitTab branchCode={operationalBranchCode} {...range} datesValid={datesValid} /></TabsContent>
       </Tabs>
     </div>

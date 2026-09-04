@@ -21,6 +21,7 @@ import type {
   UpdateDiscountRequest,
   UpdateExpenseRequest,
   CurrentStockReportQuery,
+  DamageItemReportQuery,
   ExpenseReportQuery,
   ProfitReportQuery,
   PurchaseReportQuery,
@@ -42,6 +43,7 @@ export const mq = {
   stockMovementReport: (q: StockMovementReportQuery) => ["reports", "stock-movements", q] as const,
   purchaseReport: (q: PurchaseReportQuery) => ["reports", "purchases", q] as const,
   expenseReport: (q: ExpenseReportQuery) => ["reports", "expense-report", q] as const,
+  damageItemReport: (q: DamageItemReportQuery) => ["reports", "damage-items", q] as const,
   profitReport: (q: ProfitReportQuery) => ["reports", "profit", q] as const,
 };
 
@@ -166,6 +168,9 @@ export function usePurchaseReport(q: PurchaseReportQuery, enabled = true) {
 }
 export function useExpenseReport(q: ExpenseReportQuery, enabled = true) {
   return useQuery({ queryKey: mq.expenseReport(q), queryFn: () => reportsApi.expenses(q), enabled });
+}
+export function useDamageItemReport(q: DamageItemReportQuery, enabled = true) {
+  return useQuery({ queryKey: mq.damageItemReport(q), queryFn: () => reportsApi.damageItems(q), enabled });
 }
 export function useProfitReport(q: ProfitReportQuery, enabled = true) {
   return useQuery({ queryKey: mq.profitReport(q), queryFn: () => reportsApi.profit(q), enabled });

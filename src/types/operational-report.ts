@@ -1,4 +1,4 @@
-import type { PurchaseOrderStatus, StockMovementType, StockReferenceType } from "./enums";
+import type { DamageItemStatus, PurchaseOrderStatus, StockMovementType, StockReferenceType } from "./enums";
 
 export interface CurrentStockReportLine {
   stockId: number; itemCode: string; itemName: string; barcode?: string | null; categoryName?: string | null;
@@ -28,10 +28,19 @@ export interface ExpenseReportLine { expenseId: number; expenseDate?: string | n
 export interface ExpenseCategorySummary { categoryId?: number | null; categoryName?: string | null; expenseCount: number; totalAmount: number; }
 export interface ExpenseReport { fromDate: string; toDate: string; branchCode?: string | null; expenses: ExpenseReportLine[]; categorySummary: ExpenseCategorySummary[]; totalExpenseCount: number; totalExpenseAmount: number; }
 
+export interface DamageItemReportLine {
+  damageId: number; damageDate?: string | null; itemCode?: string | null; itemName?: string | null;
+  branchCode?: string | null; branchName?: string | null; warehouseCode?: string | null;
+  warehouseName?: string | null; quantity: number; costAmount: number; reason?: string | null;
+  reportedBy?: string | null; reportedByName?: string | null; status: DamageItemStatus;
+}
+export interface DamageItemReport { fromDate: string; toDate: string; branchCode?: string | null; items: DamageItemReportLine[]; totalDamageCount: number; totalQuantity: number; totalDamageCost: number; }
+
 export interface ProfitReport { fromDate: string; toDate: string; branchCode?: string | null; grossSalesExcludingTax: number; discountTotal: number; salesReturnTotal: number; netRevenue: number; soldCost: number; returnedCost: number; netCostOfGoodsSold: number; grossProfit: number; expenseTotal: number; netProfit: number; grossProfitMarginPercentage: number; }
 
 export interface CurrentStockReportQuery { branchCode?: string; warehouseCode?: string; itemCode?: string; categoryId?: number; onlyAvailable?: boolean; onlyBelowReorderLevel?: boolean; }
 export interface StockMovementReportQuery { fromDate: string; toDate: string; branchCode?: string; warehouseCode?: string; itemCode?: string; movementType?: StockMovementType; referenceType?: StockReferenceType; referenceNo?: string; }
 export interface PurchaseReportQuery { fromDate: string; toDate: string; branchCode?: string; vendorId?: number; itemCode?: string; status?: PurchaseOrderStatus; }
 export interface ExpenseReportQuery { fromDate: string; toDate: string; branchCode?: string; categoryId?: number; paidBy?: string; }
+export interface DamageItemReportQuery { fromDate: string; toDate: string; branchCode?: string; warehouseCode?: string; itemCode?: string; status?: DamageItemStatus; }
 export interface ProfitReportQuery { fromDate: string; toDate: string; branchCode?: string; }

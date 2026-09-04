@@ -23,6 +23,8 @@ import type {
   UpdateExpenseRequest,
   CurrentStockReport,
   CurrentStockReportQuery,
+  DamageItemReport,
+  DamageItemReportQuery,
   ExpenseReport,
   ExpenseReportQuery,
   ProfitReport,
@@ -93,6 +95,8 @@ export const reportsApi = {
     api.get<PurchaseReport>("/api/reports/purchases", { params: cleanParams({ ...q }) }),
   expenses: (q: ExpenseReportQuery) =>
     api.get<ExpenseReport>("/api/reports/expenses", { params: cleanParams({ ...q }) }),
+  damageItems: (q: DamageItemReportQuery) =>
+    api.get<DamageItemReport>("/api/reports/damage-items", { params: cleanParams({ ...q }) }),
   profit: (q: ProfitReportQuery) =>
     api.get<ProfitReport>("/api/reports/profit", { params: cleanParams({ ...q }) }),
   daily: (q: ReportQuery) => api.get<DailySalesReport>("/api/reports/sales/daily", { params: cleanParams({ ...q }) }),
