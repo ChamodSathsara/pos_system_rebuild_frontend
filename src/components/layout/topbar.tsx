@@ -18,13 +18,19 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 import { initialsOf } from "@/lib/format";
 import { MapPin } from "lucide-react";
+import { useCashierShiftSession } from "./cashier-shift-guard";
 
 export function Topbar({ title }: { title?: string }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { requestLogout } = useCashierShiftSession();
 
   const handleLogout = async () => {
+    if (requestLogout) {
+      requestLogout();
+      return;
+    }
     await logout();
     router.replace("/login");
   };

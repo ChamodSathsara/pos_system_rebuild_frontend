@@ -112,8 +112,8 @@ export function useCashierShifts(params?: {
   status?: CashierShiftStatus;
   fromDate?: string;
   toDate?: string;
-}) {
-  return useQuery({ queryKey: mq.shifts(params), queryFn: () => cashierShiftsApi.list(params) });
+}, enabled = true) {
+  return useQuery({ queryKey: mq.shifts(params), queryFn: () => cashierShiftsApi.list(params), enabled });
 }
 export function useCashierShift(id?: number) {
   return useQuery({ queryKey: mq.shift(id ?? 0), queryFn: () => cashierShiftsApi.get(id as number), enabled: !!id });
