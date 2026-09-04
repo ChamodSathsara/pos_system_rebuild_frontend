@@ -25,7 +25,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCreateSale, usePosTerminalItems, useSaleInvoice } from "@/hooks/use-sale";
 import { useCustomer, useCreateCustomer } from "@/hooks/use-party";
-import { useEvaluateDiscount } from "@/hooks/use-misc";
 import { useAuthStore } from "@/store/auth-store";
 import { useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
@@ -33,7 +32,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
-import { salesApi } from "@/lib/api";
+import { discountsApi, salesApi } from "@/lib/api";
 import { buildInvoiceReceiptHtml } from "@/lib/invoice-receipt";
 import { printReceiptWithQz } from "@/lib/qz-print";
 
@@ -51,6 +50,15 @@ interface PaymentLine {
   id: string;
   paymentMethod: PaymentMethod;
   amount: string;
+}
+
+function currentDiscountEvaluationMoment() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return {
+    evaluationDate: local.toISOString().slice(0, 10),
+    evaluationTime: local.toISOString().slice(11, 19),
+  };
 }
 
 async function printSaleInvoice(invoiceNo: string, tendered: number, change: number) {
@@ -101,7 +109,6 @@ export default function PosTerminalPage() {
   });
   const results = (terminalItems ?? []).filter((item) => item.isAvailable && item.availableQty > 0);
   const { data: customer } = useCustomer(customerCode || undefined);
-  const evaluateM = useEvaluateDiscount();
   const createSale = useCreateSale();
 
   const addToCart = (p: PosTerminalItem) => {
@@ -157,21 +164,32 @@ export default function PosTerminalPage() {
   // Auto-evaluate item-level discounts whenever a line's qty/price changes.
   const cartSignature = cart.map((l) => `${l.itemCode}:${l.quantity}:${l.unitPrice}`).join(",");
   useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(() => {
-      cart.forEach((line) => {
-        evaluateM.mutate(
-          { itemCode: line.itemCode, quantity: line.quantity, itemAmount: line.unitPrice * line.quantity },
-          {
-            onSuccess: (res) => {
-              setCart((prev) =>
-                prev.map((l) => (l.itemCode === line.itemCode ? { ...l, discountAmount: res.totalItemDiscount } : l))
-              );
-            },
-          }
-        );
+      const lines = [...cart];
+      const evaluationMoment = currentDiscountEvaluationMoment();
+      void Promise.all(lines.map(async (line) => ({
+        itemCode: line.itemCode,
+        result: await discountsApi.evaluate({
+          itemCode: line.itemCode,
+          quantity: line.quantity,
+          itemAmount: line.unitPrice * line.quantity,
+          ...evaluationMoment,
+        }),
+      }))).then((evaluations) => {
+        if (cancelled) return;
+        const discounts = new Map(evaluations.map(({ itemCode, result }) => [itemCode, result.totalItemDiscount]));
+        setCart((prev) => prev.map((line) => discounts.has(line.itemCode)
+          ? { ...line, discountAmount: discounts.get(line.itemCode) ?? 0 }
+          : line));
+      }).catch(() => {
+        if (!cancelled) toast.error("Could not calculate item discounts.");
       });
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartSignature]);
 
@@ -184,14 +202,21 @@ export default function PosTerminalPage() {
       const timer = setTimeout(() => setBillDiscount(0), 0);
       return () => clearTimeout(timer);
     }
+    let cancelled = false;
     const timer = setTimeout(() => {
-      evaluateM.mutate(
-        { billAmount: subtotal - lineDiscounts },
-        { onSuccess: (res) => setBillDiscount(res.totalBillDiscount) }
-      );
+      void discountsApi.evaluate({
+        billAmount: subtotal - lineDiscounts,
+        ...currentDiscountEvaluationMoment(),
+      }).then((result) => {
+        if (!cancelled) setBillDiscount(result.totalBillDiscount);
+      }).catch(() => {
+        if (!cancelled) setBillDiscount(0);
+      });
     }, 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [subtotal, lineDiscounts]);
 
   const estTax = cart.reduce((sum, l) => {
