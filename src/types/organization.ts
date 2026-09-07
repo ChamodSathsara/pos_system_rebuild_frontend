@@ -55,11 +55,10 @@ export interface Warehouse {
 }
 
 export interface CreateWarehouseRequest {
-  warehouseCode: string;
   warehouseName: string;
   address?: string | null;
   branchCode?: string | null;
   isActive?: boolean;
 }
 
-export type UpdateWarehouseRequest = Omit<CreateWarehouseRequest, "warehouseCode">;
+export type UpdateWarehouseRequest = CreateWarehouseRequest;

@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBranches, useCreateWarehouse, useDeleteWarehouse, useUpdateWarehouse, useWarehouses } from "@/hooks/use-organization";
 import type { Warehouse } from "@/types";
-import { toast } from "sonner";
 
 export default function WarehousesPage() {
   const { data, isLoading, isError, refetch } = useWarehouses();
@@ -28,22 +27,19 @@ export default function WarehousesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [deleting, setDeleting] = useState<Warehouse | null>(null);
-  const form = useForm({ defaultValues: { warehouseCode: "", warehouseName: "", address: "", branchCode: "", isActive: true } });
+  const form = useForm({ defaultValues: { warehouseName: "", address: "", branchCode: "", isActive: true } });
 
-  const openCreate = () => { setEditing(null); form.reset({ warehouseCode: "", warehouseName: "", address: "", branchCode: "", isActive: true }); setOpen(true); };
+  const openCreate = () => { setEditing(null); form.reset({ warehouseName: "", address: "", branchCode: "", isActive: true }); setOpen(true); };
   const openEdit = (w: Warehouse) => {
     setEditing(w);
-    form.reset({ warehouseCode: w.warehouseCode, warehouseName: w.warehouseName, address: w.address ?? "", branchCode: w.branchCode ?? "", isActive: w.isActive });
+    form.reset({ warehouseName: w.warehouseName, address: w.address ?? "", branchCode: w.branchCode ?? "", isActive: w.isActive });
     setOpen(true);
   };
 
   const onSubmit = form.handleSubmit((v) => {
     const body = { warehouseName: v.warehouseName, address: v.address || null, branchCode: v.branchCode || null, isActive: v.isActive };
     if (editing) updateM.mutate({ code: editing.warehouseCode, body }, { onSuccess: () => setOpen(false) });
-    else {
-      if (!v.warehouseCode) { toast.error("Warehouse code is required."); return; }
-      createM.mutate({ warehouseCode: v.warehouseCode, ...body }, { onSuccess: () => setOpen(false) });
-    }
+    else createM.mutate(body, { onSuccess: () => setOpen(false) });
   });
 
   const columns = useMemo<ColumnDef<Warehouse>[]>(
@@ -68,8 +64,7 @@ export default function WarehousesPage() {
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} error={isError ? "Failed to load." : null} onRetry={refetch} searchPlaceholder="Search warehouses…" emptyTitle="No warehouses yet" />
       <FormDialog open={open} onOpenChange={setOpen} title={editing ? "Edit Warehouse" : "New Warehouse"} onSubmit={onSubmit} isSubmitting={createM.isPending || updateM.isPending} submitLabel={editing ? "Save" : "Create"}>
         <div className="grid grid-cols-2 gap-4">
-          {!editing && <div className="space-y-1.5"><Label>Warehouse Code *</Label><Input {...form.register("warehouseCode")} /></div>}
-          <div className={`space-y-1.5 ${editing ? "col-span-2" : ""}`}><Label>Warehouse Name *</Label><Input {...form.register("warehouseName")} /></div>
+          <div className="space-y-1.5"><Label>Warehouse Name *</Label><Input {...form.register("warehouseName")} /></div>
           <div className="space-y-1.5">
             <Label>Branch</Label>
             <Select value={form.watch("branchCode")} onValueChange={(v) => form.setValue("branchCode", v)}>
