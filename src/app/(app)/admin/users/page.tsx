@@ -22,6 +22,8 @@ import { validateSriLankanMobile } from "@/lib/phone-validation";
 import { validateEmail } from "@/lib/email-validation";
 import { toast } from "sonner";
 
+const NO_BRANCH = "__no_branch__";
+
 export default function UsersPage() {
   const { data, isLoading, isError, refetch } = useSystemUsers();
   const { data: roles } = useUserRoles();
@@ -37,6 +39,9 @@ export default function UsersPage() {
   const form = useForm({
     defaultValues: { username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", roleId: "", isActive: true },
   });
+  const selectedRoleId = form.watch("roleId");
+  const selectedRole = roles?.find((role) => String(role.roleId) === selectedRoleId);
+  const branchRequired = !!selectedRole && selectedRole.roleName !== "Admin" && selectedRole.roleName !== "Manager";
 
   const openCreate = () => {
     setEditing(null);
@@ -50,6 +55,18 @@ export default function UsersPage() {
   };
 
   const onSubmit = form.handleSubmit((v) => {
+    const role = roles?.find((item) => String(item.roleId) === v.roleId);
+    if (!role) {
+      form.setError("roleId", { message: "Select a role for this user." });
+      toast.error("A user role is required.", { description: "Select Admin, Manager, Branch Manager, or Cashier before saving." });
+      return;
+    }
+    const needsBranch = role.roleName !== "Admin" && role.roleName !== "Manager";
+    if (needsBranch && !v.branchCode) {
+      form.setError("branchCode", { message: `Select the branch this ${role.roleName.replace(/_/g, " ")} belongs to.` });
+      toast.error("A branch is required for this role.", { description: "Branch Managers and Cashiers must be assigned to a branch." });
+      return;
+    }
     if (editing) {
       updateM.mutate(
         { userCode: editing.userCode, body: { fullName: v.fullName || null, email: v.email || null, mobile: v.mobile || null, branchCode: v.branchCode || null, roleId: v.roleId ? Number(v.roleId) : null, isActive: v.isActive } },
@@ -102,18 +119,24 @@ export default function UsersPage() {
           <div className="space-y-1.5"><Label>Email</Label><Input type="email" inputMode="email" autoComplete="email" placeholder="e.g. name@example.com" {...form.register("email", { validate: validateEmail })} />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
           <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5">
-            <Label>Role</Label>
-            <Select value={form.watch("roleId")} onValueChange={(v) => form.setValue("roleId", v)}>
+            <Label>Role *</Label>
+            <Select value={selectedRoleId} onValueChange={(v) => { form.setValue("roleId", v); form.clearErrors(["roleId", "branchCode"]); }}>
               <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
               <SelectContent>{roles?.map((r) => <SelectItem key={r.roleId} value={String(r.roleId)}>{r.roleName.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
             </Select>
+            {form.formState.errors.roleId && <p className="text-xs text-destructive">{form.formState.errors.roleId.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label>Branch (leave blank for all-branch roles)</Label>
-            <Select value={form.watch("branchCode")} onValueChange={(v) => form.setValue("branchCode", v)}>
-              <SelectTrigger><SelectValue placeholder="No branch" /></SelectTrigger>
-              <SelectContent>{branches?.map((b) => <SelectItem key={b.branchCode} value={b.branchCode}>{b.branchName}</SelectItem>)}</SelectContent>
+            <Label>Branch{branchRequired ? " *" : " (optional)"}</Label>
+            <Select value={form.watch("branchCode") || NO_BRANCH} onValueChange={(v) => { form.setValue("branchCode", v === NO_BRANCH ? "" : v); form.clearErrors("branchCode"); }}>
+              <SelectTrigger><SelectValue placeholder={branchRequired ? "Select branch" : "No branch"} /></SelectTrigger>
+              <SelectContent>
+                {!branchRequired && <SelectItem value={NO_BRANCH}>No branch</SelectItem>}
+                {branches?.map((b) => <SelectItem key={b.branchCode} value={b.branchCode}>{b.branchName}</SelectItem>)}
+              </SelectContent>
             </Select>
+            {form.formState.errors.branchCode && <p className="text-xs text-destructive">{form.formState.errors.branchCode.message}</p>}
+            {!branchRequired && selectedRole && <p className="text-xs text-muted-foreground">Admin and Manager users can access all branches without an assignment.</p>}
           </div>
           <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(v) => form.setValue("isActive", v)} /><Label>Active</Label></div>
         </div>
