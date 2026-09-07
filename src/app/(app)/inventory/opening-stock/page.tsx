@@ -223,7 +223,7 @@ function CreateProductDialog({ open, onOpenChange, onCreated }: { open: boolean;
       barcode: values.barcode.trim() || null,
       costPrice: values.costPrice === "" ? null : Number(values.costPrice),
       sellingPrice: values.sellingPrice === "" ? null : Number(values.sellingPrice),
-      reorderLevel: values.reorderLevel === "" ? null : Number(values.reorderLevel),
+      reorderLevel: Number(values.reorderLevel),
       taxCode: values.taxCode || null,
       isActive: values.isActive,
     }, { onSuccess: (product) => { onCreated(product); form.reset(); onOpenChange(false); } });
@@ -241,7 +241,7 @@ function CreateProductDialog({ open, onOpenChange, onCreated }: { open: boolean;
       <div className="space-y-1.5"><Label>Tax Rate</Label><Select value={form.watch("taxCode")} onValueChange={(value) => form.setValue("taxCode", value)}><SelectTrigger><SelectValue placeholder="No tax" /></SelectTrigger><SelectContent>{taxes?.map((tax) => <SelectItem key={tax.taxCode} value={tax.taxCode}>{tax.taxName} ({tax.percentage}%)</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-1.5"><Label>Cost Price</Label><Input type="number" min="0" step="0.01" {...form.register("costPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Cost price cannot be negative." })} />{form.formState.errors.costPrice && <p className="text-xs text-destructive">{form.formState.errors.costPrice.message}</p>}</div>
       <div className="space-y-1.5"><Label>Selling Price</Label><Input type="number" min="0" step="0.01" {...form.register("sellingPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Selling price cannot be negative." })} />{form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}</div>
-      <div className="space-y-1.5"><Label>Reorder Level</Label><Input type="number" min="0" step="1" {...form.register("reorderLevel", { validate: (value) => value === "" || Number(value) >= 0 || "Reorder level cannot be negative." })} />{form.formState.errors.reorderLevel && <p className="text-xs text-destructive">{form.formState.errors.reorderLevel.message}</p>}</div>
+      <div className="space-y-1.5"><Label>Reorder Level *</Label><Input type="number" min="0" step="1" {...form.register("reorderLevel", { required: "Reorder level is required.", validate: (value) => Number(value) >= 0 || "Reorder level cannot be negative." })} />{form.formState.errors.reorderLevel && <p className="text-xs text-destructive">{form.formState.errors.reorderLevel.message}</p>}</div>
       <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(value) => form.setValue("isActive", value)} /><Label>Active</Label></div>
     </div>
   </FormDialog><CreateCategoryDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} onCreated={(categoryId) => form.setValue("categoryId", String(categoryId), { shouldValidate: true, shouldDirty: true })} /></>;

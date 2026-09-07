@@ -64,7 +64,7 @@ export interface Product {
   barcode?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
-  reorderLevel?: number | null;
+  reorderLevel: number;
   taxCode?: string | null;
   taxPercentage?: number | null;
   isActive: boolean;
@@ -105,7 +105,7 @@ export interface CreateProductRequest {
   barcode?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
-  reorderLevel?: number | null;
+  reorderLevel: number;
   taxCode?: string | null;
   isActive?: boolean;
 }

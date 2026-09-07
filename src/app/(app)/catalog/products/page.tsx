@@ -52,11 +52,15 @@ const schema = z.object({
   barcode: z.string().optional(),
   costPrice: z.coerce.number().min(0).optional(),
   sellingPrice: z.coerce.number().min(0).optional(),
-  reorderLevel: z.coerce.number().min(0).optional(),
+  reorderLevel: z.preprocess(
+    (value) => value === "" ? undefined : value,
+    z.coerce.number({ message: "Reorder level is required" }).min(0, "Reorder level cannot be negative")
+  ),
   taxCode: z.string().optional(),
   isActive: z.boolean(),
 });
-type FormValues = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormValues = z.output<typeof schema>;
 
 export default function ProductsPage() {
   const role = useAuthStore((s) => s.user?.roleName);
@@ -77,7 +81,7 @@ export default function ProductsPage() {
   const updateMutation = useUpdateProduct();
   const deleteMutation = useDeleteProduct();
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { isActive: true, unitOfMeasure: "PCS" },
   });
@@ -118,7 +122,7 @@ export default function ProductsPage() {
       barcode: values.barcode || null,
       costPrice: values.costPrice ?? null,
       sellingPrice: values.sellingPrice ?? null,
-      reorderLevel: values.reorderLevel ?? null,
+      reorderLevel: values.reorderLevel,
       taxCode: values.taxCode || null,
       isActive: values.isActive,
     };
@@ -278,7 +282,7 @@ export default function ProductsPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Item Group</Label>
-            <Select value={form.watch("itemGroup") ?? "__none__"} onValueChange={(v) => form.setValue("itemGroup", v === "__none__" ? undefined : v as FormValues["itemGroup"])}>
+            <Select value={form.watch("itemGroup") ?? "__none__"} onValueChange={(v) => form.setValue("itemGroup", v === "__none__" ? undefined : v as FormInput["itemGroup"])}>
               <SelectTrigger><SelectValue placeholder="No item group" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">No item group</SelectItem>
@@ -320,8 +324,9 @@ export default function ProductsPage() {
             <Input type="number" step="0.01" {...form.register("sellingPrice")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Reorder Level</Label>
+            <Label>Reorder Level *</Label>
             <Input type="number" {...form.register("reorderLevel")} />
+            {form.formState.errors.reorderLevel && <p className="text-xs text-destructive">{form.formState.errors.reorderLevel.message}</p>}
           </div>
           <div className="flex items-center gap-2 pt-6">
             <Switch checked={form.watch("isActive")} onCheckedChange={(v) => form.setValue("isActive", v)} />
