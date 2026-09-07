@@ -24,12 +24,14 @@ import {
   useExpenses,
   useUpdateExpense,
 } from "@/hooks/use-misc";
-import { useEffectiveBranchCode } from "@/store/auth-store";
+import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Expense } from "@/types";
 import { toast } from "sonner";
 
 export default function ExpensesPage() {
+  const currentUser = useAuthStore((state) => state.user);
+  const assignedBranchCode = currentUser?.branchCode ?? "";
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
   const { data, isLoading, isError, refetch } = useExpenses({ branchCode });
@@ -44,11 +46,11 @@ export default function ExpensesPage() {
   const updateM = useUpdateExpense();
   const deleteM = useDeleteExpense();
 
-  const form = useForm({ defaultValues: { branchCode: branchCode ?? "", categoryId: "", amount: "", expenseDate: "", description: "" } });
+  const form = useForm({ defaultValues: { branchCode: assignedBranchCode, categoryId: "", amount: "", expenseDate: "", description: "" } });
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ branchCode: branchCode ?? "", categoryId: "", amount: "", expenseDate: "", description: "" });
+    form.reset({ branchCode: assignedBranchCode, categoryId: "", amount: "", expenseDate: "", description: "" });
     setOpen(true);
   };
   const openEdit = (e: Expense) => {
@@ -64,11 +66,16 @@ export default function ExpensesPage() {
   };
 
   const onSubmit = form.handleSubmit((v) => {
-    if (!v.branchCode || !v.categoryId || !v.amount) {
-      toast.error("Branch, category and amount are required.");
+    const expenseBranchCode = editing ? editing.branchCode ?? "" : assignedBranchCode;
+    if (!expenseBranchCode) {
+      toast.error("No branch is assigned to your account.", { description: "Ask an administrator to assign a branch before recording an expense." });
       return;
     }
-    const body = { branchCode: v.branchCode, categoryId: Number(v.categoryId), amount: Number(v.amount), expenseDate: v.expenseDate || null, description: v.description || null };
+    if (!v.categoryId || !v.amount) {
+      toast.error("Category and amount are required.", { description: "Select an expense category and enter the amount before saving." });
+      return;
+    }
+    const body = { branchCode: expenseBranchCode, categoryId: Number(v.categoryId), amount: Number(v.amount), expenseDate: v.expenseDate || null, description: v.description || null };
     if (editing) updateM.mutate({ id: editing.expenseId, body }, { onSuccess: () => setOpen(false) });
     else createM.mutate(body, { onSuccess: () => setOpen(false) });
   });
@@ -113,7 +120,11 @@ export default function ExpensesPage() {
 
       <FormDialog open={open} onOpenChange={setOpen} title={editing ? "Edit Expense" : "New Expense"} onSubmit={onSubmit} isSubmitting={createM.isPending || updateM.isPending} submitLabel={editing ? "Save" : "Create"}>
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5"><Label>Branch Code *</Label><Input {...form.register("branchCode")} /></div>
+          <div className="space-y-1.5">
+            <Label>Branch *</Label>
+            <Input {...form.register("branchCode")} readOnly aria-readonly="true" placeholder="No branch assigned" className="cursor-not-allowed bg-muted" />
+            <p className="text-xs text-muted-foreground">Automatically selected from the user account.</p>
+          </div>
           <div className="space-y-1.5">
             <Label>Category *</Label>
             <Select value={form.watch("categoryId")} onValueChange={(v) => form.setValue("categoryId", v)}>
