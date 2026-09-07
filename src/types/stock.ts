@@ -50,9 +50,14 @@ export interface StockBatch {
   receivedQty: number;
   availableQty: number;
   unitCost: number;
+  sellingPrice?: number | null;
   expiryDate?: string | null;
   receivedDate: string;
   status: BatchStatus;
+}
+
+export interface UpdateBatchSellingPriceRequest {
+  sellingPrice: number;
 }
 
 export interface CreateStockBatchRequest {

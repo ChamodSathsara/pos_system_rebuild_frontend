@@ -138,6 +138,8 @@ export const api = {
   },
   put: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
     unwrap<T>(httpClient.put(url, body, config)),
+  patch: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>
+    unwrap<T>(httpClient.patch(url, body, config)),
   delete: <T>(url: string, config?: AxiosRequestConfig) => unwrap<T>(httpClient.delete(url, config)),
 };
 

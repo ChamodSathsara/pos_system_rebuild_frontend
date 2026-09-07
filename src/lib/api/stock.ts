@@ -12,6 +12,7 @@ import type {
   StockInventory,
   StockMovement,
   UpdateDamageItemRequest,
+  UpdateBatchSellingPriceRequest,
   UpdateStockBatchRequest,
   UpdateStockMovementRequest,
 } from "@/types";
@@ -36,6 +37,8 @@ export const stockBatchesApi = {
   create: (body: CreateStockBatchRequest) => api.post<StockBatch>("/api/stock-batches", body),
   update: (batchId: number, body: UpdateStockBatchRequest) =>
     api.put<StockBatch>(`/api/stock-batches/${batchId}`, body),
+  updateSellingPrice: (batchId: number, body: UpdateBatchSellingPriceRequest) =>
+    api.patch<StockBatch>(`/api/stock-batches/${batchId}/selling-price`, body),
   remove: (batchId: number) => api.delete<null>(`/api/stock-batches/${batchId}`),
 };
 

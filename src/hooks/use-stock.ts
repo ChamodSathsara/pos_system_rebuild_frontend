@@ -9,6 +9,7 @@ import type {
   CreateStockMovementRequest,
   DamageItemStatus,
   UpdateDamageItemRequest,
+  UpdateBatchSellingPriceRequest,
   UpdateStockBatchRequest,
 } from "@/types";
 
@@ -64,6 +65,12 @@ export function useUpdateStockBatch() {
   return useApiMutation(
     ({ batchId, body }: { batchId: number; body: UpdateStockBatchRequest }) => stockBatchesApi.update(batchId, body),
     { successMessage: "Batch updated", invalidateKeys: [["stock-batches"], ["stock-inventories"], ["stock-movements"]] }
+  );
+}
+export function useUpdateBatchSellingPrice() {
+  return useApiMutation(
+    ({ batchId, body }: { batchId: number; body: UpdateBatchSellingPriceRequest }) => stockBatchesApi.updateSellingPrice(batchId, body),
+    { successMessage: "Batch selling price updated successfully.", invalidateKeys: [["stock-batches"], ["stock-inventories"]] }
   );
 }
 

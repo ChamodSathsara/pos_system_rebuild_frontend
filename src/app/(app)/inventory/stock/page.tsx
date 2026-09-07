@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ColumnDef } from "@tanstack/react-table";
-import { History, PackagePlus, RotateCw } from "lucide-react";
+import { CircleDollarSign, History, PackagePlus, RotateCw } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { BranchFilter } from "@/components/shared/branch-filter";
@@ -16,10 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCreateStockBatch, useStockBatches, useReconcileStock, useStockInventories, useStockMovements } from "@/hooks/use-stock";
+import { useCreateStockBatch, useStockBatches, useReconcileStock, useStockInventories, useStockMovements, useUpdateBatchSellingPrice } from "@/hooks/use-stock";
 import { useEffectiveBranchCode } from "@/store/auth-store";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import type { StockInventory } from "@/types";
+import type { StockBatch, StockInventory } from "@/types";
 import { toast } from "sonner";
 
 export default function StockLevelsPage() {
@@ -88,6 +88,7 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
   const reconcileM = useReconcileStock();
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [priceFor, setPriceFor] = useState<StockBatch | null>(null);
 
   return (
     <>
@@ -129,14 +130,15 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
                       <p className="text-sm font-semibold">{b.batchNo}</p>
                       <StatusBadge status={b.status} />
                     </div>
-                    <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
                       <span>Received: <span className="num text-foreground">{b.receivedQty}</span></span>
                       <span>Available: <span className="num text-foreground">{b.availableQty}</span></span>
                       <span>Cost: <span className="num text-foreground">{formatMoney(b.unitCost)}</span></span>
+                      <span>Selling: <span className="num text-foreground">{b.sellingPrice == null ? "Not set" : formatMoney(b.sellingPrice)}</span></span>
                     </div>
-                    <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                      <span>Received {formatDate(b.receivedDate)}</span>
-                      {b.expiryDate && <span>Expires {formatDate(b.expiryDate)}</span>}
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <div className="flex gap-3"><span>Received {formatDate(b.receivedDate)}</span>{b.expiryDate && <span>Expires {formatDate(b.expiryDate)}</span>}</div>
+                      <Button type="button" size="xs" variant="outline" onClick={() => setPriceFor(b)}><CircleDollarSign className="h-3.5 w-3.5" /> Change Selling Price</Button>
                     </div>
                   </div>
                 ))}
@@ -147,6 +149,7 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
       </Sheet>
 
       {stock && <ReceiveStockDialog stockId={stock.stockId} open={receiveOpen} onOpenChange={setReceiveOpen} />}
+      {priceFor && <ChangeSellingPriceDialog key={priceFor.batchId} batch={priceFor} onClose={() => setPriceFor(null)} />}
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="right" className="flex h-full w-full flex-col overflow-hidden sm:max-w-2xl">
@@ -184,6 +187,26 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
       </Sheet>
     </>
   );
+}
+
+function ChangeSellingPriceDialog({ batch, onClose }: { batch: StockBatch; onClose: () => void }) {
+  const updatePrice = useUpdateBatchSellingPrice();
+  const form = useForm({ defaultValues: { sellingPrice: batch.sellingPrice == null ? "" : String(batch.sellingPrice) } });
+  const submit = form.handleSubmit((values) => {
+    updatePrice.mutate(
+      { batchId: batch.batchId, body: { sellingPrice: Number(values.sellingPrice) } },
+      { onSuccess: onClose }
+    );
+  });
+
+  return <FormDialog open onOpenChange={(open) => !open && onClose()} title={`Change selling price — ${batch.batchNo}`} description="This price applies only to the selected stock batch." onSubmit={submit} isSubmitting={updatePrice.isPending} submitLabel="Update Price">
+    <div className="space-y-1.5">
+      <Label htmlFor="batch-selling-price">Selling Price *</Label>
+      <Input id="batch-selling-price" type="number" min="0.01" step="0.01" autoFocus {...form.register("sellingPrice", { required: "Selling price is required.", validate: (value) => Number(value) > 0 || "Selling price must be greater than 0." })} />
+      {form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}
+      <p className="text-xs text-muted-foreground">Current price: {batch.sellingPrice == null ? "Not set" : formatMoney(batch.sellingPrice)}</p>
+    </div>
+  </FormDialog>;
 }
 
 function ReceiveStockDialog({ stockId, open, onOpenChange }: { stockId: number; open: boolean; onOpenChange: (o: boolean) => void }) {
