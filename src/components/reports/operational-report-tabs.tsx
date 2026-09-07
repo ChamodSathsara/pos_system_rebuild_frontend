@@ -14,10 +14,13 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { useProducts, useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
 import { useVendors } from "@/hooks/use-party";
+import { useSystemUsers } from "@/hooks/use-security";
 import { useCurrentStockReport, useDamageItemReport, useExpenseCategories, useExpenseReport, useProfitReport, usePurchaseReport, useStockMovementReport } from "@/hooks/use-misc";
 import { getUserFacingError } from "@/lib/errors";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { downloadReport, type ReportFormat } from "@/lib/report-download";
+import { isCompanyWide } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import { DamageItemStatus, PurchaseOrderStatus, StockMovementType, StockReferenceType } from "@/types";
 import type { CurrentStockReportLine, DamageItemReportLine, ExpenseReportLine, PurchaseReportLine, StockMovementReportLine } from "@/types";
@@ -130,7 +133,21 @@ export function PurchasesTab({ branchCode, fromDate, toDate, datesValid }: Repor
 export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: ReportScope) {
   const [categoryId, setCategoryId] = useState("");
   const [paidBy, setPaidBy] = useState("");
+  const currentUser = useAuthStore((state) => state.user);
+  const currentRole = currentUser?.roleName;
+  const currentBranchCode = currentUser?.branchCode;
   const { data: categories } = useExpenseCategories();
+  const { data: users, isLoading: usersLoading, isError: usersError } = useSystemUsers();
+  const paidByUsers = useMemo(() => {
+    const availableUsers = users ?? [];
+    const scopedUsers = isCompanyWide(currentRole)
+      ? availableUsers
+      : availableUsers.filter((user) => !!currentBranchCode && user.branchCode === currentBranchCode);
+
+    return [...scopedUsers].sort((a, b) =>
+      (a.fullName || a.username || a.userCode).localeCompare(b.fullName || b.username || b.userCode)
+    );
+  }, [currentBranchCode, currentRole, users]);
   const query = useExpenseReport({ fromDate, toDate, branchCode, categoryId: categoryId ? Number(categoryId) : undefined, paidBy: paidBy || undefined }, datesValid);
   const columns = useMemo<ColumnDef<ExpenseReportLine>[]>(() => [
     { accessorKey: "expenseDate", header: "Date", cell: ({ row }) => formatDate(row.original.expenseDate) },
@@ -143,7 +160,23 @@ export function ExpensesTab({ branchCode, fromDate, toDate, datesValid }: Report
   return <div className="mt-4 space-y-4">
     <Card className="flex flex-wrap items-end gap-3 p-4">
       <FilterSelect label="Category" value={categoryId} onChange={setCategoryId}>{categories?.map((c) => <SelectItem key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</SelectItem>)}</FilterSelect>
-      <div className="space-y-1.5"><Label className="text-xs">Paid By</Label><Input className="w-48" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} placeholder="User/code" /></div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Paid By</Label>
+        <Select value={paidBy || ALL} onValueChange={(value) => setPaidBy(value === ALL ? "" : value)} disabled={usersLoading || usersError}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder={usersLoading ? "Loading users..." : usersError ? "Users unavailable" : "All users"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All users</SelectItem>
+            {paidByUsers.map((user) => (
+              <SelectItem key={user.userCode} value={user.userCode}>
+                {user.fullName || user.username} ({user.userCode}){!user.isActive ? " — Inactive" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {usersError && <p className="max-w-64 text-xs text-destructive">Could not load users. Refresh the page and try again.</p>}
+      </div>
       <DownloadButtons endpoint="/api/reports/expenses" params={{ fromDate, toDate, branchCode, categoryId: categoryId ? Number(categoryId) : undefined, paidBy }} fileName={`expenses-report-${fromDate}-${toDate}`} disabled={!datesValid} />
     </Card>
     {query.data && <><Summaries values={[{ label: "Expense Count", value: qty(query.data.totalExpenseCount) }, { label: "Total Expenses", value: formatMoney(query.data.totalExpenseAmount), tone: "text-warning" }]} />
