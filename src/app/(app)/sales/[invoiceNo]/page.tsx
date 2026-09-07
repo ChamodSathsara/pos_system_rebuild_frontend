@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Ban, Printer } from "lucide-react";
+import { ArrowLeft, Ban, Loader2, Printer } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -12,17 +12,37 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useCancelSale, useSale, useSaleInvoice } from "@/hooks/use-sale";
+import { useCancelSale, useSale } from "@/hooks/use-sale";
 import { usePayments } from "@/hooks/use-sale";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { getUserFacingError } from "@/lib/errors";
+import { printSaleInvoice } from "@/lib/sale-print";
+import { toast } from "sonner";
 
 export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo: string }> }) {
   const { invoiceNo } = use(params);
   const { data: sale, isLoading, isError, refetch } = useSale(invoiceNo);
   const { data: payments } = usePayments({ invoiceNo });
-  const { data: invoice } = useSaleInvoice(invoiceNo);
   const cancelM = useCancelSale();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printSaleInvoice(invoiceNo);
+      toast.success(`Invoice ${invoiceNo} printed successfully.`);
+    } catch (error) {
+      const friendly = getUserFacingError(error, {
+        title: "The invoice could not be printed",
+        description: `Make sure QZ Tray is running and the "GA-E200 Series" printer is connected, then try again.`,
+      });
+      toast.error(friendly.title, { description: friendly.description });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (isError || !sale) return <ErrorState message="Could not load this sale." onRetry={refetch} />;
@@ -39,7 +59,10 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
           actions={
             <div className="flex items-center gap-2">
               <StatusBadge status={sale.status} />
-              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Print Invoice</Button>
+              <Button size="sm" variant="outline" onClick={handlePrint} disabled={isPrinting}>
+                {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                {isPrinting ? "Printing…" : "Print Invoice"}
+              </Button>
               {sale.status === "Completed" && (
                 <Button size="sm" variant="destructive" onClick={() => setConfirmCancel(true)}><Ban className="h-4 w-4" /> Cancel Sale</Button>
               )}

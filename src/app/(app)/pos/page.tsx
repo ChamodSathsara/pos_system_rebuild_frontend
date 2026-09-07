@@ -35,9 +35,8 @@ import { validateEmail } from "@/lib/email-validation";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
-import { discountsApi, salesApi } from "@/lib/api";
-import { buildInvoiceReceiptHtml } from "@/lib/invoice-receipt";
-import { printReceiptWithQz } from "@/lib/qz-print";
+import { discountsApi } from "@/lib/api";
+import { printSaleInvoice } from "@/lib/sale-print";
 
 interface CartLine {
   itemCode: string;
@@ -62,12 +61,6 @@ function currentDiscountEvaluationMoment() {
     evaluationDate: local.toISOString().slice(0, 10),
     evaluationTime: local.toISOString().slice(11, 19),
   };
-}
-
-async function printSaleInvoice(invoiceNo: string, tendered: number, change: number) {
-  const invoice = await salesApi.invoice(invoiceNo);
-  const html = buildInvoiceReceiptHtml(invoice, tendered, change);
-  await printReceiptWithQz(html, invoiceNo);
 }
 
 export default function PosTerminalPage() {
@@ -303,7 +296,7 @@ export default function PosTerminalPage() {
           setPaymentDialogOpen(false);
           setLastInvoice(null);
           resetCart();
-          void printSaleInvoice(sale.invoiceNo, paidTotal, Math.max(0, paidTotal - total))
+          void printSaleInvoice(sale.invoiceNo, { tendered: paidTotal, change: Math.max(0, paidTotal - total) })
             .then(() => {
               toast.success(`Invoice ${sale.invoiceNo} printed successfully.`);
               searchRef.current?.focus();
@@ -607,7 +600,7 @@ function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: st
     if (!invoiceNo || isPrinting) return;
     setIsPrinting(true);
     try {
-      await printSaleInvoice(invoiceNo, tendered, change);
+      await printSaleInvoice(invoiceNo, { tendered, change });
     } catch (error) {
       const friendly = getUserFacingError(error, {
         title: "The invoice could not be printed",
