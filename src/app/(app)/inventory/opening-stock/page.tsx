@@ -20,9 +20,9 @@ interface FormValues {
   itemCode: string;
   branchCode: string;
   warehouseCode: string;
-  batchNo: string;
   quantity: string;
   unitCost: string;
+  sellingPrice: string;
   expiryDate: string;
   openingDate: string;
   referenceNo: string;
@@ -36,9 +36,9 @@ function defaults(branchCode = ""): FormValues {
     itemCode: "",
     branchCode,
     warehouseCode: "",
-    batchNo: "",
     quantity: "",
     unitCost: "",
+    sellingPrice: "",
     expiryDate: "",
     openingDate: today(),
     referenceNo: "",
@@ -75,17 +75,23 @@ export default function OpeningStockPage() {
     form.setValue("warehouseCode", "");
   };
 
+  const selectItem = (itemCode: string) => {
+    form.setValue("itemCode", itemCode, { shouldValidate: true });
+    const datePart = (form.getValues("openingDate") || today()).replaceAll("-", "");
+    form.setValue("referenceNo", `OPENING-${itemCode}-${datePart}`);
+  };
+
   const onSubmit = form.handleSubmit((values) => {
     createOpeningStock.mutate(
       {
         itemCode: values.itemCode,
         branchCode: values.branchCode,
         warehouseCode: values.warehouseCode,
-        batchNo: values.batchNo.trim(),
         quantity: Number(values.quantity),
         unitCost: Number(values.unitCost),
+        sellingPrice: Number(values.sellingPrice),
         expiryDate: values.expiryDate || null,
-        openingDate: `${values.openingDate}T00:00:00.000Z`,
+        openingDate: values.openingDate,
         referenceNo: values.referenceNo.trim() || null,
         remarks: values.remarks.trim() || null,
       },
@@ -97,7 +103,7 @@ export default function OpeningStockPage() {
     <div className="space-y-6">
       <PageHeader
         title="Opening Stock"
-        description="Set the initial batch quantity and value for a product. The stock line is created automatically."
+        description="Set the initial quantity, cost, and selling price for a product. The batch number is generated automatically."
       />
 
       <Card className="max-w-4xl">
@@ -113,7 +119,7 @@ export default function OpeningStockPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="itemCode">Product / Item *</Label>
-                <Select value={selectedItem} onValueChange={(value) => form.setValue("itemCode", value, { shouldValidate: true })} disabled={productsLoading}>
+                <Select value={selectedItem} onValueChange={selectItem} disabled={productsLoading}>
                   <SelectTrigger id="itemCode"><SelectValue placeholder={productsLoading ? "Loading products..." : "Select a product"} /></SelectTrigger>
                   <SelectContent>
                     {products?.map((product) => <SelectItem key={product.itemCode} value={product.itemCode}>{product.itemName} ({product.itemCode})</SelectItem>)}
@@ -145,12 +151,6 @@ export default function OpeningStockPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="batchNo">Batch Number *</Label>
-                <Input id="batchNo" placeholder="e.g. OPEN-ITEM-001-2026" {...form.register("batchNo", { required: "Batch number is required." })} />
-                {form.formState.errors.batchNo && <p className="text-xs text-destructive">{form.formState.errors.batchNo.message}</p>}
-              </div>
-
-              <div className="space-y-1.5">
                 <Label htmlFor="quantity">Quantity *</Label>
                 <Input id="quantity" type="number" min="0" step="0.01" {...form.register("quantity", { required: "Quantity is required.", validate: (value) => Number(value) > 0 || "Quantity must be greater than 0." })} />
                 {form.formState.errors.quantity && <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>}
@@ -162,13 +162,19 @@ export default function OpeningStockPage() {
                 {form.formState.errors.unitCost && <p className="text-xs text-destructive">{form.formState.errors.unitCost.message}</p>}
               </div>
 
+              <div className="space-y-1.5">
+                <Label htmlFor="sellingPrice">Selling Price *</Label>
+                <Input id="sellingPrice" type="number" min="0" step="0.01" {...form.register("sellingPrice", { required: "Selling price is required.", validate: (value) => Number(value) > 0 || "Selling price must be greater than 0." })} />
+                {form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}
+              </div>
+
               <div className="space-y-1.5"><Label htmlFor="expiryDate">Expiry Date</Label><Input id="expiryDate" type="date" {...form.register("expiryDate")} /></div>
               <div className="space-y-1.5">
                 <Label htmlFor="openingDate">Opening Date *</Label>
                 <Input id="openingDate" type="date" {...form.register("openingDate", { required: "Opening date is required." })} />
                 {form.formState.errors.openingDate && <p className="text-xs text-destructive">{form.formState.errors.openingDate.message}</p>}
               </div>
-              <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="referenceNo">Reference Number</Label><Input id="referenceNo" placeholder="e.g. OPENING-2026" {...form.register("referenceNo")} /></div>
+              <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="referenceNo">Reference Number</Label><Input id="referenceNo" placeholder="Select a product to generate a reference" {...form.register("referenceNo")} /><p className="text-xs text-muted-foreground">Generated after product selection. You can change it before submitting.</p></div>
               <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="remarks">Remarks</Label><Textarea id="remarks" rows={3} placeholder="Optional notes about this opening balance" {...form.register("remarks")} /></div>
             </div>
 

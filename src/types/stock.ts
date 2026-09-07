@@ -20,9 +20,9 @@ export interface CreateOpeningStockRequest {
   itemCode: string;
   branchCode: string;
   warehouseCode: string;
-  batchNo: string;
   quantity: number;
   unitCost: number;
+  sellingPrice: number;
   expiryDate: string | null;
   openingDate: string;
   referenceNo?: string | null;
@@ -35,6 +35,7 @@ export interface OpeningStockResult {
   batchNo: string;
   quantity: number;
   unitCost: number;
+  sellingPrice?: number;
   totalValue: number;
   expiryDate?: string | null;
   openingDate: string;
