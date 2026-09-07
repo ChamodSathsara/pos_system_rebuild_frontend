@@ -27,6 +27,8 @@ import {
 import type { Branch, BranchStatus, Company } from "@/types";
 import { toast } from "sonner";
 import { validateSriLankanPhone } from "@/lib/phone-validation";
+import { isAdmin } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function OrganizationPage() {
   return (
@@ -45,6 +47,8 @@ export default function OrganizationPage() {
 }
 
 function CompaniesTab() {
+  const currentUser = useAuthStore((state) => state.user);
+  const canCreateOrDelete = isAdmin(currentUser?.roleName);
   const { data, isLoading, isError, refetch } = useCompanies();
   const createM = useCreateCompany();
   const updateM = useUpdateCompany();
@@ -80,16 +84,16 @@ function CompaniesTab() {
       { id: "actions", header: "", cell: ({ row }) => (
         <div className="flex justify-end gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleting(row.original)}><Trash2 className="h-4 w-4" /></Button>
+          {canCreateOrDelete && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleting(row.original)}><Trash2 className="h-4 w-4" /></Button>}
         </div>
       )},
     ],
-    []
+    [canCreateOrDelete]
   );
 
   return (
     <div className="mt-4 space-y-4">
-      <div className="flex justify-end"><Button onClick={openCreate}><Plus className="h-4 w-4" /> New Company</Button></div>
+      {canCreateOrDelete && <div className="flex justify-end"><Button onClick={openCreate}><Plus className="h-4 w-4" /> New Company</Button></div>}
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} error={isError ? "Failed to load." : null} onRetry={refetch} searchPlaceholder="Search companies…" emptyTitle="No companies yet" />
       <FormDialog open={open} onOpenChange={setOpen} title={editing ? "Edit Company" : "New Company"} onSubmit={onSubmit} isSubmitting={createM.isPending || updateM.isPending} submitLabel={editing ? "Save" : "Create"}>
         <div className="grid grid-cols-2 gap-4">
