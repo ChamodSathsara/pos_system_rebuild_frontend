@@ -60,8 +60,6 @@ async function startPackagedNextServer() {
       HOSTNAME: "127.0.0.1",
       PORT: String(port),
       NODE_ENV: "production",
-      QZ_CERTIFICATE_PATH: process.env.QZ_CERTIFICATE_PATH || path.join(app.getPath("desktop"), "QZ Tray Demo Cert", "digital-certificate.txt"),
-      QZ_PRIVATE_KEY_PATH: process.env.QZ_PRIVATE_KEY_PATH || path.join(app.getPath("desktop"), "QZ Tray Demo Cert", "private-key.pem"),
     },
     execPath: process.execPath,
     silent: true,

@@ -1,4 +1,5 @@
 import qz from "qz-tray";
+import { httpClient } from "@/lib/api/client";
 
 const RECEIPT_PRINTER = "GA-E200 Series";
 let securityConfigured = false;
@@ -7,19 +8,21 @@ let connectionPromise: Promise<void> | null = null;
 function configureSecurity() {
   if (securityConfigured) return;
   qz.security.setCertificatePromise(async () => {
-    const response = await fetch("/api/qz/certificate", { cache: "no-store" });
-    if (!response.ok) throw new Error(await response.text());
-    return response.text();
+    const response = await httpClient.get<string>("/api/qz/certificate", {
+      responseType: "text",
+      headers: { "Cache-Control": "no-cache" },
+      withCredentials: true,
+    });
+    return response.data;
   });
   qz.security.setSignatureAlgorithm("SHA512");
   qz.security.setSignaturePromise(async (request) => {
-    const response = await fetch("/api/qz/sign", {
-      method: "POST",
+    const response = await httpClient.post<string>("/api/qz/sign", request, {
+      responseType: "text",
       headers: { "Content-Type": "text/plain" },
-      body: request,
+      withCredentials: true,
     });
-    if (!response.ok) throw new Error(await response.text());
-    return response.text();
+    return response.data;
   });
   securityConfigured = true;
 }
