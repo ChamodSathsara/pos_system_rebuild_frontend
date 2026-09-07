@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { PackagePlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -10,11 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useProducts } from "@/hooks/use-catalog";
+import { Switch } from "@/components/ui/switch";
+import { FormDialog } from "@/components/shared/form-dialog";
+import { ProductSelector } from "@/components/shared/product-selector";
+import { useBrands, useCategories, useCreateProduct, useProducts, useTaxMasters } from "@/hooks/use-catalog";
 import { useBranches, useWarehouses } from "@/hooks/use-organization";
 import { useCreateOpeningStock } from "@/hooks/use-stock";
 import { isBranchScoped } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
+import { ItemGroup, UnitOfMeasure, type Product } from "@/types";
 
 interface FormValues {
   itemCode: string;
@@ -47,6 +51,7 @@ function defaults(branchCode = ""): FormValues {
 }
 
 export default function OpeningStockPage() {
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const scoped = isBranchScoped(user?.roleName);
   const assignedBranch = scoped ? user?.branchCode ?? "" : "";
@@ -79,6 +84,12 @@ export default function OpeningStockPage() {
     form.setValue("itemCode", itemCode, { shouldValidate: true });
     const datePart = (form.getValues("openingDate") || today()).replaceAll("-", "");
     form.setValue("referenceNo", `OPENING-${itemCode}-${datePart}`);
+  };
+
+  const selectCreatedProduct = (product: Product) => {
+    selectItem(product.itemCode);
+    if (product.costPrice != null) form.setValue("unitCost", String(product.costPrice));
+    if (product.sellingPrice != null) form.setValue("sellingPrice", String(product.sellingPrice));
   };
 
   const onSubmit = form.handleSubmit((values) => {
@@ -118,13 +129,8 @@ export default function OpeningStockPage() {
             <input type="hidden" {...form.register("warehouseCode", { required: "Warehouse is required." })} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="itemCode">Product / Item *</Label>
-                <Select value={selectedItem} onValueChange={selectItem} disabled={productsLoading}>
-                  <SelectTrigger id="itemCode"><SelectValue placeholder={productsLoading ? "Loading products..." : "Select a product"} /></SelectTrigger>
-                  <SelectContent>
-                    {products?.map((product) => <SelectItem key={product.itemCode} value={product.itemCode}>{product.itemName} ({product.itemCode})</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between gap-2"><Label htmlFor="itemCode">Product / Item *</Label><Button type="button" variant="ghost" size="xs" onClick={() => setProductDialogOpen(true)}><PackagePlus className="h-3.5 w-3.5" /> Create Product</Button></div>
+                <ProductSelector products={products ?? []} value={selectedItem} onChange={selectItem} isLoading={productsLoading} />
                 {form.formState.errors.itemCode && <p className="text-xs text-destructive">{form.formState.errors.itemCode.message}</p>}
               </div>
 
@@ -187,6 +193,55 @@ export default function OpeningStockPage() {
           </form>
         </CardContent>
       </Card>
+      <CreateProductDialog open={productDialogOpen} onOpenChange={setProductDialogOpen} onCreated={selectCreatedProduct} />
     </div>
   );
+}
+
+interface ProductFormValues {
+  itemName: string; description: string; categoryId: string; brandId: string; unitOfMeasure: (typeof UnitOfMeasure)[number];
+  itemGroup: (typeof ItemGroup)[number]; barcode: string; costPrice: string; sellingPrice: string; reorderLevel: string; taxCode: string; isActive: boolean;
+}
+
+function CreateProductDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (product: Product) => void }) {
+  const createProduct = useCreateProduct();
+  const { data: categories } = useCategories(true);
+  const { data: brands } = useBrands(true);
+  const { data: taxes } = useTaxMasters(true);
+  const form = useForm<ProductFormValues>({ defaultValues: { itemName: "", description: "", categoryId: "", brandId: "", unitOfMeasure: "PCS", itemGroup: "Consumables", barcode: "", costPrice: "", sellingPrice: "", reorderLevel: "", taxCode: "", isActive: true } });
+
+  const submit = form.handleSubmit((values) => {
+    createProduct.mutate({
+      itemCode: null,
+      itemName: values.itemName.trim(),
+      description: values.description.trim() || null,
+      categoryId: values.categoryId ? Number(values.categoryId) : null,
+      brandId: values.brandId ? Number(values.brandId) : null,
+      unitOfMeasure: values.unitOfMeasure,
+      itemGroup: values.itemGroup,
+      barcode: values.barcode.trim() || null,
+      costPrice: values.costPrice === "" ? null : Number(values.costPrice),
+      sellingPrice: values.sellingPrice === "" ? null : Number(values.sellingPrice),
+      reorderLevel: values.reorderLevel === "" ? null : Number(values.reorderLevel),
+      taxCode: values.taxCode || null,
+      isActive: values.isActive,
+    }, { onSuccess: (product) => { onCreated(product); form.reset(); onOpenChange(false); } });
+  });
+
+  return <FormDialog open={open} onOpenChange={onOpenChange} title="Create Product" description="Create a product without leaving the opening stock form." onSubmit={submit} isSubmitting={createProduct.isPending} submitLabel="Create Product" className="sm:max-w-2xl">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="space-y-1.5 sm:col-span-2"><Label>Item Name *</Label><Input autoFocus {...form.register("itemName", { required: "Item name is required." })} />{form.formState.errors.itemName && <p className="text-xs text-destructive">{form.formState.errors.itemName.message}</p>}</div>
+      <div className="space-y-1.5 sm:col-span-2"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
+      <div className="space-y-1.5"><Label>Category</Label><Select value={form.watch("categoryId")} onValueChange={(value) => form.setValue("categoryId", value)}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories?.map((category) => <SelectItem key={category.categoryId} value={String(category.categoryId)}>{category.categoryName}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Brand</Label><Select value={form.watch("brandId")} onValueChange={(value) => form.setValue("brandId", value)}><SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger><SelectContent>{brands?.map((brand) => <SelectItem key={brand.brandId} value={String(brand.brandId)}>{brand.brandName}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Unit of Measure *</Label><Select value={form.watch("unitOfMeasure")} onValueChange={(value) => form.setValue("unitOfMeasure", value as ProductFormValues["unitOfMeasure"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UnitOfMeasure.map((unit) => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Item Group *</Label><Select value={form.watch("itemGroup")} onValueChange={(value) => form.setValue("itemGroup", value as ProductFormValues["itemGroup"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ItemGroup.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Barcode</Label><Input {...form.register("barcode")} /></div>
+      <div className="space-y-1.5"><Label>Tax Rate</Label><Select value={form.watch("taxCode")} onValueChange={(value) => form.setValue("taxCode", value)}><SelectTrigger><SelectValue placeholder="No tax" /></SelectTrigger><SelectContent>{taxes?.map((tax) => <SelectItem key={tax.taxCode} value={tax.taxCode}>{tax.taxName} ({tax.percentage}%)</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Cost Price</Label><Input type="number" min="0" step="0.01" {...form.register("costPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Cost price cannot be negative." })} />{form.formState.errors.costPrice && <p className="text-xs text-destructive">{form.formState.errors.costPrice.message}</p>}</div>
+      <div className="space-y-1.5"><Label>Selling Price</Label><Input type="number" min="0" step="0.01" {...form.register("sellingPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Selling price cannot be negative." })} />{form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}</div>
+      <div className="space-y-1.5"><Label>Reorder Level</Label><Input type="number" min="0" step="1" {...form.register("reorderLevel", { validate: (value) => value === "" || Number(value) >= 0 || "Reorder level cannot be negative." })} />{form.formState.errors.reorderLevel && <p className="text-xs text-destructive">{form.formState.errors.reorderLevel.message}</p>}</div>
+      <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(value) => form.setValue("isActive", value)} /><Label>Active</Label></div>
+    </div>
+  </FormDialog>;
 }
