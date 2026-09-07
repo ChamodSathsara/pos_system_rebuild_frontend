@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
+const isVercelBuild = process.env.VERCEL === "1";
+
 const nextConfig: NextConfig = {
-  // Produces the minimal self-contained Node server bundled by Electron.
-  // `next dev` and the existing browser workflow are unaffected.
-  output: "standalone",
+  // Electron needs a self-contained Node server. Vercel produces and traces its
+  // own deployment output, so forcing standalone mode there can conflict with
+  // Vercel's build pipeline.
+  ...(isVercelBuild ? {} : { output: "standalone" as const }),
 };
 
 export default nextConfig;
