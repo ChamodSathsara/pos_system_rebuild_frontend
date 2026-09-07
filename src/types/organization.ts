@@ -36,7 +36,6 @@ export interface Branch {
 }
 
 export interface CreateBranchRequest {
-  branchCode: string;
   branchName: string;
   address?: string | null;
   phone?: string | null;
@@ -44,7 +43,7 @@ export interface CreateBranchRequest {
   companyCode?: string | null;
 }
 
-export type UpdateBranchRequest = Omit<CreateBranchRequest, "branchCode">;
+export type UpdateBranchRequest = CreateBranchRequest;
 
 export interface Warehouse {
   warehouseCode: string;

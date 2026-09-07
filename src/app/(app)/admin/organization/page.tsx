@@ -116,22 +116,19 @@ function BranchesTab() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [deleting, setDeleting] = useState<Branch | null>(null);
-  const form = useForm({ defaultValues: { branchCode: "", branchName: "", address: "", phone: "", status: "Active" as BranchStatus, companyCode: "" } });
+  const form = useForm({ defaultValues: { branchName: "", address: "", phone: "", status: "Active" as BranchStatus, companyCode: "" } });
 
-  const openCreate = () => { setEditing(null); form.reset({ branchCode: "", branchName: "", address: "", phone: "", status: "Active", companyCode: "" }); setOpen(true); };
+  const openCreate = () => { setEditing(null); form.reset({ branchName: "", address: "", phone: "", status: "Active", companyCode: "" }); setOpen(true); };
   const openEdit = (b: Branch) => {
     setEditing(b);
-    form.reset({ branchCode: b.branchCode, branchName: b.branchName, address: b.address ?? "", phone: b.phone ?? "", status: b.status, companyCode: b.companyCode ?? "" });
+    form.reset({ branchName: b.branchName, address: b.address ?? "", phone: b.phone ?? "", status: b.status, companyCode: b.companyCode ?? "" });
     setOpen(true);
   };
 
   const onSubmit = form.handleSubmit((v) => {
     const body = { branchName: v.branchName, address: v.address || null, phone: v.phone || null, status: v.status, companyCode: v.companyCode || null };
     if (editing) updateM.mutate({ code: editing.branchCode, body }, { onSuccess: () => setOpen(false) });
-    else {
-      if (!v.branchCode) { toast.error("Branch code is required."); return; }
-      createM.mutate({ branchCode: v.branchCode, ...body }, { onSuccess: () => setOpen(false) });
-    }
+    else createM.mutate(body, { onSuccess: () => setOpen(false) });
   });
 
   const columns = useMemo<ColumnDef<Branch>[]>(
@@ -157,8 +154,7 @@ function BranchesTab() {
       <DataTable columns={columns} data={branches ?? []} isLoading={isLoading} error={isError ? "Failed to load." : null} onRetry={refetch} searchPlaceholder="Search branches…" emptyTitle="No branches yet" />
       <FormDialog open={open} onOpenChange={setOpen} title={editing ? "Edit Branch" : "New Branch"} onSubmit={onSubmit} isSubmitting={createM.isPending || updateM.isPending} submitLabel={editing ? "Save" : "Create"}>
         <div className="grid grid-cols-2 gap-4">
-          {!editing && <div className="space-y-1.5"><Label>Branch Code *</Label><Input {...form.register("branchCode")} /></div>}
-          <div className={`space-y-1.5 ${editing ? "col-span-2" : ""}`}><Label>Branch Name *</Label><Input {...form.register("branchName")} /></div>
+          <div className="space-y-1.5"><Label>Branch Name *</Label><Input {...form.register("branchName")} /></div>
           <div className="space-y-1.5">
             <Label>Company</Label>
             <Select value={form.watch("companyCode")} onValueChange={(v) => form.setValue("companyCode", v)}>
