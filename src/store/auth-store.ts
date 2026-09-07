@@ -2,7 +2,8 @@
 
 import { create } from "zustand";
 import { authApi } from "@/lib/api";
-import { clearSession, getAccessToken, getStoredUser, setAccessToken, setRefreshToken, setStoredUser } from "@/lib/token";
+import { refreshAccessToken } from "@/lib/api/client";
+import { clearSession, getStoredUser, hasValidAccessToken, setAccessToken, setStoredUser } from "@/lib/token";
 import type { CurrentUser } from "@/types";
 import { isBranchScoped } from "@/lib/permissions";
 
@@ -28,7 +29,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await authApi.login({ username, password });
       setAccessToken(res.accessToken);
-      setRefreshToken(res.refreshToken);
       setStoredUser(res.user);
       set({ user: res.user, isHydrated: true });
       return res.user;
@@ -49,14 +49,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   hydrate: async () => {
     if (get().isHydrated) return;
-    const token = getAccessToken();
-    if (!token) {
-      set({ isHydrated: true });
-      return;
-    }
     const cached = getStoredUser<CurrentUser>();
     if (cached) set({ user: cached });
     try {
+      if (!hasValidAccessToken()) {
+        await refreshAccessToken();
+      }
       const me = await authApi.me();
       setStoredUser(me);
       set({ user: me, isHydrated: true });

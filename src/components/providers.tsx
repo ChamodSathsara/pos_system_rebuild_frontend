@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/shared/toaster";
 import { registerUnauthorizedHandler } from "@/lib/api/client";
+import { useAuthStore } from "@/store/auth-store";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,9 +21,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     registerUnauthorizedHandler(() => {
+      useAuthStore.getState().setUser(null);
+      queryClient.clear();
       router.replace("/login");
     });
-  }, [router]);
+  }, [queryClient, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

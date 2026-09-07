@@ -21,7 +21,10 @@ export interface CurrentUser {
 export interface LoginResponse {
   accessToken: string;
   accessTokenExpiresAt: string;
-  refreshToken: string;
-  refreshTokenExpiresAt: string;
   user: CurrentUser;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+  accessTokenExpiresAt?: string;
 }
