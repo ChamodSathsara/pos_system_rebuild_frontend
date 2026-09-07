@@ -31,6 +31,7 @@ import { useWarehouses } from "@/hooks/use-organization";
 import { ErrorState } from "@/components/shared/error-state";
 import { getUserFacingError } from "@/lib/errors";
 import { validateSriLankanMobile } from "@/lib/phone-validation";
+import { validateEmail } from "@/lib/email-validation";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
@@ -587,7 +588,7 @@ function NewCustomerDialog({ open, onOpenChange, onCreated }: { open: boolean; o
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1.5"><Label>Name *</Label><Input {...form.register("customerName")} /></div>
           <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
-          <div className="space-y-1.5"><Label>Email</Label><Input type="email" {...form.register("email")} /></div>
+          <div className="space-y-1.5"><Label>Email</Label><Input type="email" inputMode="email" autoComplete="email" placeholder="e.g. name@example.com" {...form.register("email", { validate: validateEmail })} />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={createM.isPending}>{createM.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Create</Button>

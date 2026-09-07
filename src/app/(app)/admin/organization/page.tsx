@@ -27,6 +27,7 @@ import {
 import type { Branch, BranchStatus, Company } from "@/types";
 import { toast } from "sonner";
 import { validateSriLankanPhone } from "@/lib/phone-validation";
+import { validateEmail } from "@/lib/email-validation";
 import { isAdmin } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -100,7 +101,7 @@ function CompaniesTab() {
           {!editing && <div className="space-y-1.5"><Label>Company Code *</Label><Input {...form.register("companyCode")} /></div>}
           <div className={`space-y-1.5 ${editing ? "col-span-2" : ""}`}><Label>Company Name *</Label><Input {...form.register("companyName")} /></div>
           <div className="space-y-1.5"><Label>Phone</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0112345678" {...form.register("phone", { validate: validateSriLankanPhone })} />{form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}</div>
-          <div className="space-y-1.5"><Label>Email</Label><Input {...form.register("email")} /></div>
+          <div className="space-y-1.5"><Label>Email</Label><Input type="email" inputMode="email" autoComplete="email" placeholder="e.g. name@example.com" {...form.register("email", { validate: validateEmail })} />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
           <div className="space-y-1.5"><Label>Registration No.</Label><Input {...form.register("registrationNo")} /></div>
           <div className="space-y-1.5"><Label>Tax ID</Label><Input {...form.register("taxId")} /></div>
           <div className="col-span-2 space-y-1.5"><Label>Address</Label><Input {...form.register("address")} /></div>

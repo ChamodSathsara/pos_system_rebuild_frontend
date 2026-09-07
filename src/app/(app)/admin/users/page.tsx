@@ -19,6 +19,7 @@ import { useBranches } from "@/hooks/use-organization";
 import { formatDateTime } from "@/lib/format";
 import type { SystemUser } from "@/types";
 import { validateSriLankanMobile } from "@/lib/phone-validation";
+import { validateEmail } from "@/lib/email-validation";
 import { toast } from "sonner";
 
 export default function UsersPage() {
@@ -98,7 +99,7 @@ export default function UsersPage() {
             </>
           )}
           <div className="col-span-2 space-y-1.5"><Label>Full Name</Label><Input {...form.register("fullName")} /></div>
-          <div className="space-y-1.5"><Label>Email</Label><Input type="email" {...form.register("email")} /></div>
+          <div className="space-y-1.5"><Label>Email</Label><Input type="email" inputMode="email" autoComplete="email" placeholder="e.g. name@example.com" {...form.register("email", { validate: validateEmail })} />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
           <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5">
             <Label>Role</Label>
