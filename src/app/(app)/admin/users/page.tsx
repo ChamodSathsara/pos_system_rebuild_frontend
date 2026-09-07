@@ -18,6 +18,7 @@ import { useCreateSystemUser, useDeleteSystemUser, useSystemUsers, useUpdateSyst
 import { useBranches } from "@/hooks/use-organization";
 import { formatDateTime } from "@/lib/format";
 import type { SystemUser } from "@/types";
+import { validateSriLankanMobile } from "@/lib/phone-validation";
 import { toast } from "sonner";
 
 export default function UsersPage() {
@@ -98,7 +99,7 @@ export default function UsersPage() {
           )}
           <div className="col-span-2 space-y-1.5"><Label>Full Name</Label><Input {...form.register("fullName")} /></div>
           <div className="space-y-1.5"><Label>Email</Label><Input type="email" {...form.register("email")} /></div>
-          <div className="space-y-1.5"><Label>Mobile</Label><Input {...form.register("mobile")} /></div>
+          <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5">
             <Label>Role</Label>
             <Select value={form.watch("roleId")} onValueChange={(v) => form.setValue("roleId", v)}>

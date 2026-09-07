@@ -30,6 +30,7 @@ import { useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
 import { ErrorState } from "@/components/shared/error-state";
 import { getUserFacingError } from "@/lib/errors";
+import { validateSriLankanMobile } from "@/lib/phone-validation";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
@@ -585,7 +586,7 @@ function NewCustomerDialog({ open, onOpenChange, onCreated }: { open: boolean; o
         <DialogHeader><DialogTitle>New Customer</DialogTitle></DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1.5"><Label>Name *</Label><Input {...form.register("customerName")} /></div>
-          <div className="space-y-1.5"><Label>Mobile</Label><Input {...form.register("mobile")} /></div>
+          <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5"><Label>Email</Label><Input type="email" {...form.register("email")} /></div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

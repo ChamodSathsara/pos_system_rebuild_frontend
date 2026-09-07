@@ -26,6 +26,7 @@ import {
 } from "@/hooks/use-organization";
 import type { Branch, BranchStatus, Company } from "@/types";
 import { toast } from "sonner";
+import { validateSriLankanPhone } from "@/lib/phone-validation";
 
 export default function OrganizationPage() {
   return (
@@ -94,7 +95,7 @@ function CompaniesTab() {
         <div className="grid grid-cols-2 gap-4">
           {!editing && <div className="space-y-1.5"><Label>Company Code *</Label><Input {...form.register("companyCode")} /></div>}
           <div className={`space-y-1.5 ${editing ? "col-span-2" : ""}`}><Label>Company Name *</Label><Input {...form.register("companyName")} /></div>
-          <div className="space-y-1.5"><Label>Phone</Label><Input {...form.register("phone")} /></div>
+          <div className="space-y-1.5"><Label>Phone</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0112345678" {...form.register("phone", { validate: validateSriLankanPhone })} />{form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}</div>
           <div className="space-y-1.5"><Label>Email</Label><Input {...form.register("email")} /></div>
           <div className="space-y-1.5"><Label>Registration No.</Label><Input {...form.register("registrationNo")} /></div>
           <div className="space-y-1.5"><Label>Tax ID</Label><Input {...form.register("taxId")} /></div>
@@ -171,7 +172,7 @@ function BranchesTab() {
               <SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5"><Label>Phone</Label><Input {...form.register("phone")} /></div>
+          <div className="space-y-1.5"><Label>Phone</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0112345678" {...form.register("phone", { validate: validateSriLankanPhone })} />{form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}</div>
           <div className="col-span-2 space-y-1.5"><Label>Address</Label><Input {...form.register("address")} /></div>
         </div>
       </FormDialog>

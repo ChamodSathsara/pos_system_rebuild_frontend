@@ -25,6 +25,7 @@ import {
 } from "@/hooks/use-party";
 import { formatMoney } from "@/lib/format";
 import type { Vendor } from "@/types";
+import { validateSriLankanPhone } from "@/lib/phone-validation";
 import { useAuthStore } from "@/store/auth-store";
 import { canManagePurchasing } from "@/lib/permissions";
 
@@ -107,7 +108,7 @@ export default function VendorsPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2 space-y-1.5"><Label>Vendor Name *</Label><Input {...form.register("vendorName")} /></div>
           <div className="space-y-1.5"><Label>Contact Person</Label><Input {...form.register("contactPerson")} /></div>
-          <div className="space-y-1.5"><Label>Phone</Label><Input {...form.register("phone")} /></div>
+          <div className="space-y-1.5"><Label>Phone</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0112345678" {...form.register("phone", { validate: validateSriLankanPhone })} />{form.formState.errors.phone && <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>}</div>
           <div className="col-span-2 space-y-1.5"><Label>Email</Label><Input type="email" {...form.register("email")} /></div>
           <div className="col-span-2 space-y-1.5"><Label>Address</Label><Input {...form.register("address")} /></div>
           <div className="flex items-center gap-2"><Switch checked={form.watch("isActive")} onCheckedChange={(v) => form.setValue("isActive", v)} /><Label>Active</Label></div>
