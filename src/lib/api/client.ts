@@ -22,12 +22,6 @@ export const httpClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const refreshClient = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
-});
-
 const AUTH_ROUTES = ["/api/auth/login", "/api/auth/refresh", "/api/auth/logout"];
 type RetryableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -37,9 +31,11 @@ function isAuthRoute(url?: string) {
 
 httpClient.interceptors.request.use((config) => {
   const token = getAccessToken();
-  if (token && !config.url?.includes("/api/auth/login") && !config.url?.includes("/api/auth/refresh")) {
-    config.headers = config.headers ?? {};
+  config.headers = config.headers ?? {};
+  if (token && !isAuthRoute(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    delete config.headers.Authorization;
   }
   return config;
 });
@@ -54,18 +50,26 @@ let refreshPromise: Promise<string> | null = null;
 /** Refreshes through the HttpOnly cookie. All callers share the same in-flight request. */
 export function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = refreshClient
+    refreshPromise = httpClient
       .post<ApiResponse<RefreshResponse> | RefreshResponse>("/api/auth/refresh", undefined, {
         withCredentials: true,
         headers: { "X-Requested-With": "XMLHttpRequest" },
       })
       .then((response) => {
         const responseBody = response.data;
-        const payload = "data" in responseBody ? responseBody.data : responseBody;
+        const payload = responseBody && typeof responseBody === "object" && "data" in responseBody
+          ? responseBody.data
+          : responseBody;
         if (!payload?.accessToken) throw new Error("The server did not return a new access token.");
         setAccessToken(payload.accessToken);
         httpClient.defaults.headers.common.Authorization = `Bearer ${payload.accessToken}`;
         return payload.accessToken;
+      })
+      .catch((error) => {
+        clearSession();
+        delete httpClient.defaults.headers.common.Authorization;
+        onUnauthorized?.();
+        throw error;
       })
       .finally(() => {
         refreshPromise = null;
@@ -88,8 +92,6 @@ httpClient.interceptors.response.use(
       request.headers.Authorization = `Bearer ${token}`;
       return httpClient(request);
     } catch (refreshError) {
-      clearSession();
-      onUnauthorized?.();
       return Promise.reject(refreshError);
     }
   }

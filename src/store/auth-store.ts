@@ -51,16 +51,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (get().isHydrated) return;
     const cached = getStoredUser<CurrentUser>();
     if (cached) set({ user: cached });
-    try {
-      if (!hasValidAccessToken()) {
+    if (!hasValidAccessToken()) {
+      try {
         await refreshAccessToken();
+      } catch {
+        set({ user: null, isHydrated: true });
+        return;
       }
+    }
+    try {
       const me = await authApi.me();
       setStoredUser(me);
       set({ user: me, isHydrated: true });
     } catch {
-      clearSession();
-      set({ user: null, isHydrated: true });
+      // A temporary /me or network failure must not destroy a valid session.
+      // A failed refresh has already cleared storage in refreshAccessToken().
+      set({ user: getStoredUser<CurrentUser>(), isHydrated: true });
     }
   },
 }));
