@@ -45,10 +45,10 @@ import { canManageCatalog } from "@/lib/permissions";
 const schema = z.object({
   itemName: z.string().min(1, "Item name is required"),
   description: z.string().optional(),
-  categoryId: z.string().optional(),
+  categoryId: z.string().min(1, "Category is required"),
   brandId: z.string().optional(),
   unitOfMeasure: z.enum(UnitOfMeasure),
-  itemGroup: z.enum(ItemGroup),
+  itemGroup: z.enum(ItemGroup).optional(),
   barcode: z.string().optional(),
   costPrice: z.coerce.number().min(0).optional(),
   sellingPrice: z.coerce.number().min(0).optional(),
@@ -79,12 +79,12 @@ export default function ProductsPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { isActive: true, unitOfMeasure: "PCS", itemGroup: "Consumables" },
+    defaultValues: { isActive: true, unitOfMeasure: "PCS" },
   });
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ isActive: true, unitOfMeasure: "PCS", itemGroup: "Consumables", itemName: "", description: "", categoryId: undefined, brandId: undefined, barcode: "", costPrice: undefined, sellingPrice: undefined, reorderLevel: undefined, taxCode: undefined });
+    form.reset({ isActive: true, unitOfMeasure: "PCS", itemGroup: undefined, itemName: "", description: "", categoryId: undefined, brandId: undefined, barcode: "", costPrice: undefined, sellingPrice: undefined, reorderLevel: undefined, taxCode: undefined });
     setDialogOpen(true);
   };
 
@@ -96,7 +96,7 @@ export default function ProductsPage() {
       categoryId: p.categoryId ? String(p.categoryId) : undefined,
       brandId: p.brandId ? String(p.brandId) : undefined,
       unitOfMeasure: p.unitOfMeasure,
-      itemGroup: p.itemGroup,
+      itemGroup: p.itemGroup ?? undefined,
       barcode: p.barcode ?? "",
       costPrice: p.costPrice ?? undefined,
       sellingPrice: p.sellingPrice ?? undefined,
@@ -111,10 +111,10 @@ export default function ProductsPage() {
     const body = {
       itemName: values.itemName,
       description: values.description || null,
-      categoryId: values.categoryId ? Number(values.categoryId) : null,
+      categoryId: Number(values.categoryId),
       brandId: values.brandId ? Number(values.brandId) : null,
       unitOfMeasure: values.unitOfMeasure,
-      itemGroup: values.itemGroup,
+      itemGroup: values.itemGroup ?? null,
       barcode: values.barcode || null,
       costPrice: values.costPrice ?? null,
       sellingPrice: values.sellingPrice ?? null,
@@ -240,10 +240,10 @@ export default function ProductsPage() {
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label>Category</Label>
-              <Button type="button" variant="ghost" size="xs" onClick={() => setQuickCreate("category")}><Plus /> Create new</Button>
+              <Label>Category *</Label>
+              <Button type="button" variant="ghost" size="xs" onClick={() => setQuickCreate("category")}><Plus /> Create Category</Button>
             </div>
-            <Select value={form.watch("categoryId") ?? ""} onValueChange={(v) => form.setValue("categoryId", v)}>
+            <Select value={form.watch("categoryId") ?? ""} onValueChange={(v) => form.setValue("categoryId", v, { shouldValidate: true })}>
               <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
               <SelectContent>
                 {categories?.map((c) => (
@@ -251,6 +251,7 @@ export default function ProductsPage() {
                 ))}
               </SelectContent>
             </Select>
+            {form.formState.errors.categoryId && <p className="text-xs text-destructive">{form.formState.errors.categoryId.message}</p>}
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -276,10 +277,11 @@ export default function ProductsPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Item Group *</Label>
-            <Select value={form.watch("itemGroup")} onValueChange={(v) => form.setValue("itemGroup", v as FormValues["itemGroup"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Label>Item Group</Label>
+            <Select value={form.watch("itemGroup") ?? "__none__"} onValueChange={(v) => form.setValue("itemGroup", v === "__none__" ? undefined : v as FormValues["itemGroup"])}>
+              <SelectTrigger><SelectValue placeholder="No item group" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">No item group</SelectItem>
                 {ItemGroup.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -331,7 +333,7 @@ export default function ProductsPage() {
       <QuickCreateCategoryDialog
         open={quickCreate === "category"}
         onOpenChange={(open) => !open && setQuickCreate(null)}
-        onCreated={(categoryId) => form.setValue("categoryId", String(categoryId), { shouldDirty: true })}
+        onCreated={(categoryId) => form.setValue("categoryId", String(categoryId), { shouldDirty: true, shouldValidate: true })}
       />
       <QuickCreateBrandDialog
         open={quickCreate === "brand"}

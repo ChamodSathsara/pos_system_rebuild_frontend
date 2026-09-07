@@ -55,12 +55,12 @@ export interface Product {
   itemCode: string;
   itemName: string;
   description?: string | null;
-  categoryId?: number | null;
+  categoryId: number;
   categoryName?: string | null;
   brandId?: number | null;
   brandName?: string | null;
   unitOfMeasure: UnitOfMeasure;
-  itemGroup: ItemGroup;
+  itemGroup?: ItemGroup | null;
   barcode?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;
@@ -83,7 +83,7 @@ export interface PosTerminalItem {
   brandId?: number | null;
   brandName?: string | null;
   unitOfMeasure: UnitOfMeasure;
-  itemGroup: ItemGroup;
+  itemGroup?: ItemGroup | null;
   price: number;
   availableQty: number;
   reorderLevel?: number | null;
@@ -98,10 +98,10 @@ export interface CreateProductRequest {
   itemCode?: string | null;
   itemName: string;
   description?: string | null;
-  categoryId?: number | null;
+  categoryId: number;
   brandId?: number | null;
   unitOfMeasure: UnitOfMeasure;
-  itemGroup: ItemGroup;
+  itemGroup?: ItemGroup | null;
   barcode?: string | null;
   costPrice?: number | null;
   sellingPrice?: number | null;

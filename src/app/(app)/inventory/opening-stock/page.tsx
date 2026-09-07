@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { FormDialog } from "@/components/shared/form-dialog";
 import { ProductSelector } from "@/components/shared/product-selector";
-import { useBrands, useCategories, useCreateProduct, useProducts, useTaxMasters } from "@/hooks/use-catalog";
+import { useBrands, useCategories, useCreateCategory, useCreateProduct, useProducts, useTaxMasters } from "@/hooks/use-catalog";
 import { useBranches, useWarehouses } from "@/hooks/use-organization";
 import { useCreateOpeningStock } from "@/hooks/use-stock";
 import { isBranchScoped } from "@/lib/permissions";
@@ -200,25 +200,26 @@ export default function OpeningStockPage() {
 
 interface ProductFormValues {
   itemName: string; description: string; categoryId: string; brandId: string; unitOfMeasure: (typeof UnitOfMeasure)[number];
-  itemGroup: (typeof ItemGroup)[number]; barcode: string; costPrice: string; sellingPrice: string; reorderLevel: string; taxCode: string; isActive: boolean;
+  itemGroup: (typeof ItemGroup)[number] | ""; barcode: string; costPrice: string; sellingPrice: string; reorderLevel: string; taxCode: string; isActive: boolean;
 }
 
 function CreateProductDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (product: Product) => void }) {
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const createProduct = useCreateProduct();
   const { data: categories } = useCategories(true);
   const { data: brands } = useBrands(true);
   const { data: taxes } = useTaxMasters(true);
-  const form = useForm<ProductFormValues>({ defaultValues: { itemName: "", description: "", categoryId: "", brandId: "", unitOfMeasure: "PCS", itemGroup: "Consumables", barcode: "", costPrice: "", sellingPrice: "", reorderLevel: "", taxCode: "", isActive: true } });
+  const form = useForm<ProductFormValues>({ defaultValues: { itemName: "", description: "", categoryId: "", brandId: "", unitOfMeasure: "PCS", itemGroup: "", barcode: "", costPrice: "", sellingPrice: "", reorderLevel: "", taxCode: "", isActive: true } });
 
   const submit = form.handleSubmit((values) => {
     createProduct.mutate({
       itemCode: null,
       itemName: values.itemName.trim(),
       description: values.description.trim() || null,
-      categoryId: values.categoryId ? Number(values.categoryId) : null,
+      categoryId: Number(values.categoryId),
       brandId: values.brandId ? Number(values.brandId) : null,
       unitOfMeasure: values.unitOfMeasure,
-      itemGroup: values.itemGroup,
+      itemGroup: values.itemGroup || null,
       barcode: values.barcode.trim() || null,
       costPrice: values.costPrice === "" ? null : Number(values.costPrice),
       sellingPrice: values.sellingPrice === "" ? null : Number(values.sellingPrice),
@@ -228,20 +229,37 @@ function CreateProductDialog({ open, onOpenChange, onCreated }: { open: boolean;
     }, { onSuccess: (product) => { onCreated(product); form.reset(); onOpenChange(false); } });
   });
 
-  return <FormDialog open={open} onOpenChange={onOpenChange} title="Create Product" description="Create a product without leaving the opening stock form." onSubmit={submit} isSubmitting={createProduct.isPending} submitLabel="Create Product" className="sm:max-w-2xl">
+  return <><FormDialog open={open} onOpenChange={onOpenChange} title="Create Product" description="Create a product without leaving the opening stock form." onSubmit={submit} isSubmitting={createProduct.isPending} submitLabel="Create Product" className="sm:max-w-2xl">
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="space-y-1.5 sm:col-span-2"><Label>Item Name *</Label><Input autoFocus {...form.register("itemName", { required: "Item name is required." })} />{form.formState.errors.itemName && <p className="text-xs text-destructive">{form.formState.errors.itemName.message}</p>}</div>
       <div className="space-y-1.5 sm:col-span-2"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
-      <div className="space-y-1.5"><Label>Category</Label><Select value={form.watch("categoryId")} onValueChange={(value) => form.setValue("categoryId", value)}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories?.map((category) => <SelectItem key={category.categoryId} value={String(category.categoryId)}>{category.categoryName}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><div className="flex items-center justify-between gap-2"><Label>Category *</Label><Button type="button" variant="ghost" size="xs" onClick={() => setCategoryDialogOpen(true)}><PackagePlus className="h-3.5 w-3.5" /> Create Category</Button></div><input type="hidden" {...form.register("categoryId", { required: "Category is required." })} /><Select value={form.watch("categoryId")} onValueChange={(value) => form.setValue("categoryId", value, { shouldValidate: true })}><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent>{categories?.map((category) => <SelectItem key={category.categoryId} value={String(category.categoryId)}>{category.categoryName}</SelectItem>)}</SelectContent></Select>{form.formState.errors.categoryId && <p className="text-xs text-destructive">{form.formState.errors.categoryId.message}</p>}</div>
       <div className="space-y-1.5"><Label>Brand</Label><Select value={form.watch("brandId")} onValueChange={(value) => form.setValue("brandId", value)}><SelectTrigger><SelectValue placeholder="Select brand" /></SelectTrigger><SelectContent>{brands?.map((brand) => <SelectItem key={brand.brandId} value={String(brand.brandId)}>{brand.brandName}</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-1.5"><Label>Unit of Measure *</Label><Select value={form.watch("unitOfMeasure")} onValueChange={(value) => form.setValue("unitOfMeasure", value as ProductFormValues["unitOfMeasure"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UnitOfMeasure.map((unit) => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}</SelectContent></Select></div>
-      <div className="space-y-1.5"><Label>Item Group *</Label><Select value={form.watch("itemGroup")} onValueChange={(value) => form.setValue("itemGroup", value as ProductFormValues["itemGroup"])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ItemGroup.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Item Group</Label><Select value={form.watch("itemGroup") || "__none__"} onValueChange={(value) => form.setValue("itemGroup", value === "__none__" ? "" : value as ProductFormValues["itemGroup"])}><SelectTrigger><SelectValue placeholder="No item group" /></SelectTrigger><SelectContent><SelectItem value="__none__">No item group</SelectItem>{ItemGroup.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-1.5"><Label>Barcode</Label><Input {...form.register("barcode")} /></div>
       <div className="space-y-1.5"><Label>Tax Rate</Label><Select value={form.watch("taxCode")} onValueChange={(value) => form.setValue("taxCode", value)}><SelectTrigger><SelectValue placeholder="No tax" /></SelectTrigger><SelectContent>{taxes?.map((tax) => <SelectItem key={tax.taxCode} value={tax.taxCode}>{tax.taxName} ({tax.percentage}%)</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-1.5"><Label>Cost Price</Label><Input type="number" min="0" step="0.01" {...form.register("costPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Cost price cannot be negative." })} />{form.formState.errors.costPrice && <p className="text-xs text-destructive">{form.formState.errors.costPrice.message}</p>}</div>
       <div className="space-y-1.5"><Label>Selling Price</Label><Input type="number" min="0" step="0.01" {...form.register("sellingPrice", { validate: (value) => value === "" || Number(value) >= 0 || "Selling price cannot be negative." })} />{form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}</div>
       <div className="space-y-1.5"><Label>Reorder Level</Label><Input type="number" min="0" step="1" {...form.register("reorderLevel", { validate: (value) => value === "" || Number(value) >= 0 || "Reorder level cannot be negative." })} />{form.formState.errors.reorderLevel && <p className="text-xs text-destructive">{form.formState.errors.reorderLevel.message}</p>}</div>
       <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(value) => form.setValue("isActive", value)} /><Label>Active</Label></div>
+    </div>
+  </FormDialog><CreateCategoryDialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen} onCreated={(categoryId) => form.setValue("categoryId", String(categoryId), { shouldValidate: true, shouldDirty: true })} /></>;
+}
+
+function CreateCategoryDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: (categoryId: number) => void }) {
+  const createCategory = useCreateCategory();
+  const form = useForm({ defaultValues: { categoryName: "", description: "" } });
+  const submit = form.handleSubmit((values) => {
+    createCategory.mutate({ categoryName: values.categoryName.trim(), description: values.description.trim() || null, parentCategoryId: null, isActive: true }, {
+      onSuccess: (category) => { onCreated(category.categoryId); form.reset(); onOpenChange(false); },
+    });
+  });
+
+  return <FormDialog open={open} onOpenChange={onOpenChange} title="Create Category" description="The new category will be selected automatically in the product form." onSubmit={submit} isSubmitting={createCategory.isPending} submitLabel="Create Category">
+    <div className="space-y-4">
+      <div className="space-y-1.5"><Label>Category Name *</Label><Input autoFocus {...form.register("categoryName", { required: "Category name is required." })} />{form.formState.errors.categoryName && <p className="text-xs text-destructive">{form.formState.errors.categoryName.message}</p>}</div>
+      <div className="space-y-1.5"><Label>Description</Label><Textarea rows={2} {...form.register("description")} /></div>
     </div>
   </FormDialog>;
 }
