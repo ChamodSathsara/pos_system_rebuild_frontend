@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@/config/env";
 import { clearSession, getAccessToken } from "@/lib/token";
 import type { ApiResponse } from "@/types";
+import { getUserFacingError } from "@/lib/errors";
 
 export class ApiError extends Error {
   status?: number;
@@ -61,13 +62,8 @@ async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T>
     if (err instanceof ApiError) throw err;
     const axiosErr = err as AxiosError<ApiResponse<unknown>>;
     const envelope = axiosErr.response?.data;
-    const message =
-      envelope?.message ||
-      (axiosErr.code === "ERR_NETWORK"
-        ? "Cannot reach the server. Check your connection or try again."
-        : axiosErr.message) ||
-      "Something went wrong.";
-    throw new ApiError(message, axiosErr.response?.status, envelope?.errors);
+    const friendly = getUserFacingError(axiosErr);
+    throw new ApiError(envelope?.message || friendly.title, axiosErr.response?.status, envelope?.errors);
   }
 }
 
@@ -87,13 +83,8 @@ export const api = {
       if (err instanceof ApiError) throw err;
       const axiosErr = err as AxiosError<ApiResponse<unknown>>;
       const envelope = axiosErr.response?.data;
-      const message =
-        envelope?.message ||
-        (axiosErr.code === "ERR_NETWORK"
-          ? "Cannot reach the server. Check your connection or try again."
-          : axiosErr.message) ||
-        "Something went wrong.";
-      throw new ApiError(message, axiosErr.response?.status, envelope?.errors);
+      const friendly = getUserFacingError(axiosErr);
+      throw new ApiError(envelope?.message || friendly.title, axiosErr.response?.status, envelope?.errors);
     }
   },
   put: <T>(url: string, body?: unknown, config?: AxiosRequestConfig) =>

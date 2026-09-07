@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
+import { getUserFacingDetails, getUserFacingError } from "@/lib/errors";
 
 export interface UseApiMutationOptions<TData, TVariables> {
   successMessage?: string | ((data: TData, vars: TVariables) => string);
@@ -32,9 +33,11 @@ export function useApiMutation<TData, TVariables>(
       onSuccess?.(data, vars);
     },
     onError: (err, vars) => {
-      const message = err instanceof ApiError ? err.message : "Something went wrong.";
-      const details = err instanceof ApiError ? err.errors : null;
-      toast.error(message, details && details.length ? { description: details.join(", ") } : undefined);
+      const friendly = getUserFacingError(err);
+      const details = getUserFacingDetails(err instanceof ApiError ? err.errors : null, friendly.title);
+      toast.error(friendly.title, {
+        description: details.length ? details.join(" • ") : friendly.description,
+      });
       onError?.(err, vars);
     },
   });

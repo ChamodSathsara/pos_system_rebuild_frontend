@@ -29,6 +29,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
 import { ErrorState } from "@/components/shared/error-state";
+import { getUserFacingError } from "@/lib/errors";
 import { formatMoney } from "@/lib/format";
 import { PaymentMethod, type PosTerminalItem } from "@/types";
 import { toast } from "sonner";
@@ -308,7 +309,11 @@ export default function PosTerminalPage() {
             .catch((error) => {
               setLastPaymentSummary({ tendered: paidTotal, change: Math.max(0, paidTotal - total) });
               setLastInvoice(sale.invoiceNo);
-              toast.error(error instanceof Error ? error.message : "Invoice could not be printed automatically.");
+              const friendly = getUserFacingError(error, {
+                title: "Sale completed, but the invoice did not print",
+                description: "The sale is saved. Check the receipt printer, then use Print again from the completed sale.",
+              });
+              toast.error(friendly.title, { description: friendly.description });
             });
         },
       }
@@ -602,7 +607,11 @@ function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: st
     try {
       await printSaleInvoice(invoiceNo, tendered, change);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load the printable invoice.");
+      const friendly = getUserFacingError(error, {
+        title: "The invoice could not be printed",
+        description: "Check that QZ Tray and the receipt printer are running, then try again.",
+      });
+      toast.error(friendly.title, { description: friendly.description });
     } finally {
       setIsPrinting(false);
     }

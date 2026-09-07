@@ -24,6 +24,7 @@ import { formatDate, formatMoney, formatNumber, toDateOnly } from "@/lib/format"
 import type { DailySalesReportRow, ItemWiseSalesReportLine, SalesReturnReportLine } from "@/types";
 import { Receipt, ShoppingBag, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { getUserFacingError } from "@/lib/errors";
 
 function defaultRange() {
   const to = new Date();
@@ -46,8 +47,12 @@ export default function ReportsPage() {
     setExporting(true);
     try {
       await reportsApi.download(kind, format, query);
-    } catch {
-      toast.error("Could not generate the export.");
+    } catch (error) {
+      const friendly = getUserFacingError(error, {
+        title: "Could not generate the export",
+        description: "Check the date range and your connection, then try again.",
+      });
+      toast.error(friendly.title, { description: friendly.description });
     } finally {
       setExporting(false);
     }

@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth-store";
-import { ApiError } from "@/lib/api/client";
 import { toast } from "sonner";
+import { getUserFacingError } from "@/lib/errors";
 
 const schema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -35,8 +35,11 @@ export default function LoginPage() {
       await login(values.username, values.password);
       router.replace("/dashboard");
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Unable to sign in.";
-      toast.error(message);
+      const friendly = getUserFacingError(err, {
+        title: "Sign-in failed",
+        description: "Check your username and password, then try again.",
+      });
+      toast.error(friendly.title, { description: friendly.description });
     }
   };
 

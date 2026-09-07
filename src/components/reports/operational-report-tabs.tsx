@@ -15,7 +15,7 @@ import { useProducts, useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
 import { useVendors } from "@/hooks/use-party";
 import { useCurrentStockReport, useDamageItemReport, useExpenseCategories, useExpenseReport, useProfitReport, usePurchaseReport, useStockMovementReport } from "@/hooks/use-misc";
-import { ApiError } from "@/lib/api/client";
+import { getUserFacingError } from "@/lib/errors";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { downloadReport, type ReportFormat } from "@/lib/report-download";
 import { toast } from "sonner";
@@ -25,9 +25,10 @@ import type { CurrentStockReportLine, DamageItemReportLine, ExpenseReportLine, P
 interface ReportScope { branchCode?: string; warehouseBranchCode?: string; fromDate: string; toDate: string; datesValid: boolean; }
 const ALL = "__all__";
 const qty = (value?: number | null) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(value ?? 0);
-const errorText = (error: unknown) => error instanceof ApiError
-  ? error.status === 403 ? "Access denied: you do not have permission to view this report." : error.message
-  : "Could not load this report.";
+const errorText = (error: unknown) => getUserFacingError(error, {
+  title: "Could not load this report",
+  description: "Check the selected filters and your connection, then try again.",
+}).title;
 
 function FilterSelect({ label, value, onChange, children, className = "w-44" }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode; className?: string }) {
   return <div className="space-y-1.5"><Label className="text-xs">{label}</Label><Select value={value || ALL} onValueChange={(next) => onChange(next === ALL ? "" : next)}><SelectTrigger className={className}><SelectValue /></SelectTrigger><SelectContent><SelectItem value={ALL}>All</SelectItem>{children}</SelectContent></Select></div>;
@@ -48,7 +49,11 @@ function DownloadButtons({ endpoint, params, fileName, disabled = false }: { end
       await downloadReport(`${endpoint}/${format}`, params, format, fileName);
       toast.success(`${format === "pdf" ? "PDF" : "Excel"} report downloaded successfully.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not download the report.");
+      const friendly = getUserFacingError(error, {
+        title: "Could not download the report",
+        description: "Check your connection and selected filters, then try the download again.",
+      });
+      toast.error(friendly.title, { description: friendly.description });
     } finally {
       locked.current = false;
       setDownloading(null);
