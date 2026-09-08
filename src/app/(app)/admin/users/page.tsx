@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateSystemUser, useDeleteSystemUser, useSystemUsers, useUpdateSystemUser, useUserRoles } from "@/hooks/use-security";
-import { useBranches } from "@/hooks/use-organization";
+import { useBranches, useWarehouses } from "@/hooks/use-organization";
 import { formatDateTime } from "@/lib/format";
 import type { SystemUser } from "@/types";
 import { validateSriLankanMobile } from "@/lib/phone-validation";
@@ -28,6 +28,7 @@ export default function UsersPage() {
   const { data, isLoading, isError, refetch } = useSystemUsers();
   const { data: roles } = useUserRoles();
   const { data: branches } = useBranches();
+  const { data: warehouses } = useWarehouses();
   const createM = useCreateSystemUser();
   const updateM = useUpdateSystemUser();
   const deleteM = useDeleteSystemUser();
@@ -37,20 +38,22 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState<SystemUser | null>(null);
 
   const form = useForm({
-    defaultValues: { username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", roleId: "", isActive: true },
+    defaultValues: { username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", warehouseCode: "", roleId: "", isActive: true },
   });
   const selectedRoleId = form.watch("roleId");
   const selectedRole = roles?.find((role) => String(role.roleId) === selectedRoleId);
-  const branchRequired = !!selectedRole && selectedRole.roleName !== "Admin" && selectedRole.roleName !== "Manager";
+  const isInventoryClerk = selectedRole?.roleName === "InventoryClerk";
+  const branchRequired = !!selectedRole && !["Admin", "Manager", "InventoryClerk"].includes(selectedRole.roleName);
+  const centralWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.isCentralWarehouse && warehouse.isActive);
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", roleId: "", isActive: true });
+    form.reset({ username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", warehouseCode: "", roleId: "", isActive: true });
     setOpen(true);
   };
   const openEdit = (u: SystemUser) => {
     setEditing(u);
-    form.reset({ username: u.username, password: "", fullName: u.fullName ?? "", email: u.email ?? "", mobile: u.mobile ?? "", branchCode: u.branchCode ?? "", roleId: u.roleId ? String(u.roleId) : "", isActive: u.isActive });
+    form.reset({ username: u.username, password: "", fullName: u.fullName ?? "", email: u.email ?? "", mobile: u.mobile ?? "", branchCode: u.branchCode ?? "", warehouseCode: u.warehouseCode ?? "", roleId: u.roleId ? String(u.roleId) : "", isActive: u.isActive });
     setOpen(true);
   };
 
@@ -61,16 +64,23 @@ export default function UsersPage() {
       toast.error("A user role is required.", { description: "Select Admin, Manager, Branch Manager, or Cashier before saving." });
       return;
     }
-    const needsBranch = role.roleName !== "Admin" && role.roleName !== "Manager";
+    const needsBranch = !["Admin", "Manager", "InventoryClerk"].includes(role.roleName);
     if (needsBranch && !v.branchCode) {
       form.setError("branchCode", { message: `Select the branch this ${role.roleName.replace(/_/g, " ")} belongs to.` });
       toast.error("A branch is required for this role.", { description: "Branch Managers and Cashiers must be assigned to a branch." });
       return;
     }
+    if (role.roleName === "InventoryClerk" && !v.warehouseCode) {
+      form.setError("warehouseCode", { message: "Select the Main Warehouse assigned to this Inventory Clerk." });
+      toast.error("Main Warehouse is required.", { description: "Inventory Clerk users must be assigned to an active central warehouse." });
+      return;
+    }
+    const branchCode = role.roleName === "InventoryClerk" ? null : v.branchCode || null;
+    const warehouseCode = role.roleName === "InventoryClerk" ? v.warehouseCode : null;
     if (editing) {
       updateM.mutate(
-        { userCode: editing.userCode, body: { fullName: v.fullName || null, email: v.email || null, mobile: v.mobile || null, branchCode: v.branchCode || null, roleId: v.roleId ? Number(v.roleId) : null, isActive: v.isActive } },
-        { onSuccess: () => setOpen(false) }
+        { userCode: editing.userCode, body: { fullName: v.fullName || null, email: v.email || null, mobile: v.mobile || null, branchCode, warehouseCode, roleId: v.roleId ? Number(v.roleId) : null, isActive: v.isActive } },
+        { onSuccess: () => { setOpen(false); toast.info("Assignment updated", { description: "The affected user must sign out and sign in again to apply role or warehouse changes." }); } }
       );
     } else {
       if (!v.username || !v.password) {
@@ -78,7 +88,7 @@ export default function UsersPage() {
         return;
       }
       createM.mutate(
-        { userCode: null, username: v.username, password: v.password, fullName: v.fullName || null, email: v.email || null, mobile: v.mobile || null, branchCode: v.branchCode || null, roleId: v.roleId ? Number(v.roleId) : null, isActive: v.isActive },
+        { userCode: null, username: v.username, password: v.password, fullName: v.fullName || null, email: v.email || null, mobile: v.mobile || null, branchCode, warehouseCode, roleId: v.roleId ? Number(v.roleId) : null, isActive: v.isActive },
         { onSuccess: () => setOpen(false) }
       );
     }
@@ -90,6 +100,7 @@ export default function UsersPage() {
       { accessorKey: "username", header: "Username", cell: ({ row }) => <div><p className="font-medium">{row.original.username}</p><p className="text-xs text-muted-foreground">{row.original.fullName}</p></div> },
       { accessorKey: "roleName", header: "Role", cell: ({ row }) => row.original.roleName ? <Badge variant="outline">{row.original.roleName.replace(/_/g, " ")}</Badge> : "—" },
       { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => row.original.branchCode || "All" },
+      { accessorKey: "warehouseCode", header: "Main Warehouse", cell: ({ row }) => row.original.warehouseCode || "—" },
       { accessorKey: "lastLogin", header: "Last Login", cell: ({ row }) => formatDateTime(row.original.lastLogin) },
       { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "success" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
       { id: "actions", header: "", cell: ({ row }) => (
@@ -120,13 +131,13 @@ export default function UsersPage() {
           <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5">
             <Label>Role *</Label>
-            <Select value={selectedRoleId} onValueChange={(v) => { form.setValue("roleId", v); form.clearErrors(["roleId", "branchCode"]); }}>
+            <Select value={selectedRoleId} onValueChange={(v) => { const role = roles?.find((item) => String(item.roleId) === v); form.setValue("roleId", v); if (role?.roleName === "InventoryClerk") form.setValue("branchCode", ""); else form.setValue("warehouseCode", ""); form.clearErrors(["roleId", "branchCode", "warehouseCode"]); }}>
               <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
               <SelectContent>{roles?.map((r) => <SelectItem key={r.roleId} value={String(r.roleId)}>{r.roleName.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
             </Select>
             {form.formState.errors.roleId && <p className="text-xs text-destructive">{form.formState.errors.roleId.message}</p>}
           </div>
-          <div className="space-y-1.5">
+          {!isInventoryClerk && <div className="space-y-1.5">
             <Label>Branch{branchRequired ? " *" : " (optional)"}</Label>
             <Select value={form.watch("branchCode") || NO_BRANCH} onValueChange={(v) => { form.setValue("branchCode", v === NO_BRANCH ? "" : v); form.clearErrors("branchCode"); }}>
               <SelectTrigger><SelectValue placeholder={branchRequired ? "Select branch" : "No branch"} /></SelectTrigger>
@@ -137,7 +148,16 @@ export default function UsersPage() {
             </Select>
             {form.formState.errors.branchCode && <p className="text-xs text-destructive">{form.formState.errors.branchCode.message}</p>}
             {!branchRequired && selectedRole && <p className="text-xs text-muted-foreground">Admin and Manager users can access all branches without an assignment.</p>}
-          </div>
+          </div>}
+          {isInventoryClerk && <div className="space-y-1.5">
+            <Label>Main Warehouse *</Label>
+            <Select value={form.watch("warehouseCode")} onValueChange={(v) => { form.setValue("warehouseCode", v); form.clearErrors("warehouseCode"); }}>
+              <SelectTrigger><SelectValue placeholder="Select Main Warehouse" /></SelectTrigger>
+              <SelectContent>{centralWarehouses.map((warehouse) => <SelectItem key={warehouse.warehouseCode} value={warehouse.warehouseCode}>{warehouse.warehouseName} ({warehouse.warehouseCode})</SelectItem>)}</SelectContent>
+            </Select>
+            {form.formState.errors.warehouseCode && <p className="text-xs text-destructive">{form.formState.errors.warehouseCode.message}</p>}
+            <p className="text-xs text-muted-foreground">Only active central warehouses can be assigned.</p>
+          </div>}
           <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(v) => form.setValue("isActive", v)} /><Label>Active</Label></div>
         </div>
       </FormDialog>

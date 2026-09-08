@@ -17,19 +17,25 @@ import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCreateStockBatch, useStockBatches, useReconcileStock, useStockInventories, useStockMovements, useUpdateBatchSellingPrice } from "@/hooks/use-stock";
-import { useEffectiveBranchCode } from "@/store/auth-store";
+import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
+import { useWarehouse } from "@/hooks/use-organization";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import type { StockBatch, StockInventory } from "@/types";
 import { toast } from "sonner";
 
 export default function StockLevelsPage() {
+  const user = useAuthStore((state) => state.user);
+  const isInventoryClerk = user?.roleName === "InventoryClerk";
+  const assignedWarehouseCode = isInventoryClerk ? user?.warehouseCode ?? "" : "";
+  const assignedWarehouse = useWarehouse(isInventoryClerk ? assignedWarehouseCode : undefined);
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
   const [onlyLow, setOnlyLow] = useState(false);
   const [detailFor, setDetailFor] = useState<StockInventory | null>(null);
 
-  const { data, isLoading, isError, refetch } = useStockInventories({ branchCode, onlyBelowReorderLevel: onlyLow || undefined });
-  const { data: lowStockData } = useStockInventories({ branchCode, onlyBelowReorderLevel: true });
+  const stockScope = { branchCode: isInventoryClerk ? undefined : branchCode, warehouseCode: assignedWarehouseCode || undefined };
+  const { data, isLoading, isError, refetch } = useStockInventories({ ...stockScope, onlyBelowReorderLevel: onlyLow || undefined }, !isInventoryClerk || !!assignedWarehouseCode);
+  const { data: lowStockData } = useStockInventories({ ...stockScope, onlyBelowReorderLevel: true }, !isInventoryClerk || !!assignedWarehouseCode);
   const lowStockIds = useMemo(() => new Set((lowStockData ?? []).map((stock) => stock.stockId)), [lowStockData]);
 
   const columns = useMemo<ColumnDef<StockInventory>[]>(
@@ -72,6 +78,9 @@ export default function StockLevelsPage() {
     [lowStockIds]
   );
 
+  if (isInventoryClerk && !assignedWarehouseCode) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Main Warehouse is not assigned.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin. Warehouse actions are unavailable.</p></div>;
+  if (isInventoryClerk && assignedWarehouse.isError) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Assigned Main Warehouse could not be loaded.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin and verify the warehouse assignment.</p></div>;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -82,7 +91,7 @@ export default function StockLevelsPage() {
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <Switch checked={onlyLow} onCheckedChange={setOnlyLow} /> Below reorder only
             </label>
-            <BranchFilter value={branchFilter} onChange={setBranchFilter} />
+            {!isInventoryClerk && <BranchFilter value={branchFilter} onChange={setBranchFilter} />}
           </div>
         }
       />

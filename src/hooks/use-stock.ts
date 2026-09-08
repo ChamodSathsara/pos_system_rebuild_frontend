@@ -32,8 +32,8 @@ export function useStockInventories(params?: {
   branchCode?: string;
   warehouseCode?: string;
   onlyBelowReorderLevel?: boolean;
-}) {
-  return useQuery({ queryKey: sq.inventories(params), queryFn: () => stockInventoriesApi.list(params) });
+}, enabled = true) {
+  return useQuery({ queryKey: sq.inventories(params), queryFn: () => stockInventoriesApi.list(params), enabled });
 }
 export function useCreateStockInventory() {
   return useApiMutation((body: CreateStockInventoryRequest) => stockInventoriesApi.create(body), {

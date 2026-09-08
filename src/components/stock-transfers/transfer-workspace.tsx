@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuthStore } from "@/store/auth-store";
-import { useWarehouses } from "@/hooks/use-organization";
+import { useWarehouse, useWarehouses } from "@/hooks/use-organization";
 import { useProducts } from "@/hooks/use-catalog";
 import { useAcceptStockTransfer, useCreateStockTransfer, useDispatchStockTransfer, useReceiveStockTransfer, useStockTransfers } from "@/hooks/use-stock-transfer";
 import { stockBatchesApi, stockInventoriesApi, stockTransfersApi } from "@/lib/api";
@@ -29,15 +29,18 @@ const statusClass: Record<string, string> = { Submitted: "bg-warning/15 text-war
 
 export function TransferWorkspace({ mode }: { mode: Mode }) {
   const user = useAuthStore((s) => s.user);
-  const { data: warehouses } = useWarehouses();
+  const isInventoryClerk = user?.roleName === "InventoryClerk";
+  const { data: allWarehouses } = useWarehouses(undefined, !isInventoryClerk);
+  const { data: assignedWarehouse, isLoading: assignedWarehouseLoading, isError: assignedWarehouseError } = useWarehouse(isInventoryClerk ? user?.warehouseCode : undefined);
+  const warehouses = isInventoryClerk ? (assignedWarehouse ? [assignedWarehouse] : []) : (allWarehouses ?? []);
   const { data: products } = useProducts({ isActive: true });
-  const central = (warehouses ?? []).filter((w) => w.isCentralWarehouse);
-  const ownWarehouses = (warehouses ?? []).filter((w) => !w.isCentralWarehouse && (user?.roleName !== "Branch_Manager" || w.branchCode === user.branchCode));
+  const central = warehouses.filter((w) => w.isCentralWarehouse);
+  const ownWarehouses = warehouses.filter((w) => !w.isCentralWarehouse && (user?.roleName !== "Branch_Manager" || w.branchCode === user.branchCode));
   const [warehouseCode, setWarehouseCode] = useState("");
   const [status, setStatus] = useState(""); const [fromDate, setFromDate] = useState(""); const [toDate, setToDate] = useState("");
-  const effectiveWarehouse = warehouseCode || (mode === "queue" || mode === "dispatches" ? central[0]?.warehouseCode : ownWarehouses[0]?.warehouseCode) || "";
+  const effectiveWarehouse = isInventoryClerk ? user?.warehouseCode ?? "" : warehouseCode || (mode === "queue" || mode === "dispatches" ? central[0]?.warehouseCode : ownWarehouses[0]?.warehouseCode) || "";
   const filters = { ...(mode === "queue" || mode === "dispatches" ? { sourceWarehouseCode: effectiveWarehouse } : { destinationWarehouseCode: effectiveWarehouse }), status: (mode === "incoming" ? "Dispatched" : status || undefined) as import("@/types").StockTransferStatus | undefined, fromDate: fromDate || undefined, toDate: toDate || undefined };
-  const query = useStockTransfers(effectiveWarehouse ? filters : undefined);
+  const query = useStockTransfers(effectiveWarehouse ? filters : undefined, !!effectiveWarehouse);
   const rows = useMemo(() => (query.data ?? []).filter((t) => (mode !== "incoming" || t.status === "Dispatched") && (mode !== "dispatches" || ["Dispatched", "Received"].includes(t.status))), [query.data, mode]);
   const counts = useMemo(() => ({ pending: rows.filter((x) => x.status === "Submitted").length, accepted: rows.filter((x) => x.status === "Accepted").length, ready: rows.filter((x) => x.status === "Picking").length, transit: rows.filter((x) => x.status === "Dispatched").length, received: rows.filter((x) => x.status === "Received" && new Date(x.requestDate).toDateString() === new Date().toDateString()).length, dispatchQty: rows.flatMap((x) => x.dispatches ?? []).filter((d) => new Date(d.dispatchedAt).toDateString() === new Date().toDateString()).flatMap((d) => d.lines).reduce((sum, x) => sum + x.quantity, 0) }), [rows]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -55,11 +58,15 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
     { id: "actions", header: "", cell: ({ row }) => <TransferActions transfer={row.original} mode={mode} onAccept={setAcceptFor} onDispatch={setDispatchFor} onReceive={(transfer, dispatch) => setReceiveFor({ transfer, dispatch })} /> },
   ];
   const selectorWarehouses = mode === "queue" || mode === "dispatches" ? central : ownWarehouses;
+  if (isInventoryClerk && !user?.warehouseCode) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Main Warehouse is not assigned.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin. Warehouse actions are unavailable until a Main Warehouse is assigned, then sign out and sign in again.</p></div>;
+  if (isInventoryClerk && assignedWarehouseLoading) return <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">Loading assigned Main Warehouse...</div>;
+  if (isInventoryClerk && (assignedWarehouseError || !assignedWarehouse?.isCentralWarehouse)) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Assigned Main Warehouse could not be loaded.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin and verify the warehouse assignment.</p></div>;
   return <div className="space-y-6">
     <PageHeader title={title} description="Internal Main Warehouse to branch warehouse stock movements." actions={<div className="flex gap-2">
-      <Select value={effectiveWarehouse} onValueChange={setWarehouseCode}><SelectTrigger className="w-56"><SelectValue placeholder="Select warehouse" /></SelectTrigger><SelectContent>{selectorWarehouses.map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName} ({w.warehouseCode})</SelectItem>)}</SelectContent></Select>
+      <Select value={effectiveWarehouse} onValueChange={setWarehouseCode} disabled={isInventoryClerk}><SelectTrigger className="w-56"><SelectValue placeholder="Select warehouse" /></SelectTrigger><SelectContent>{selectorWarehouses.map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName} ({w.warehouseCode})</SelectItem>)}</SelectContent></Select>
       {mode === "requests" && <Button onClick={() => setCreateOpen(true)}><Plus /> New Request</Button>}
     </div>} />
+    {isInventoryClerk && assignedWarehouse && <div className="rounded-xl border bg-card p-4"><p className="font-medium">{assignedWarehouse.warehouseName}</p><p className="mt-1 text-sm text-muted-foreground">{assignedWarehouse.warehouseCode} · {assignedWarehouse.address || "No address recorded"}</p></div>}
     <div className={`grid gap-3 ${mode === "queue" ? "sm:grid-cols-5" : "sm:grid-cols-3"}`}>{(mode === "queue" ? [["Pending Requests", counts.pending], ["Accepted", counts.accepted], ["Ready to Dispatch", counts.ready], ["In Transit", counts.transit], ["Today's Dispatch Qty", counts.dispatchQty]] : [["Pending Requests", counts.pending], ["In Transit Deliveries", counts.transit], ["Received Today", counts.received]]).map(([label, value]) => <div key={String(label)} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}</div>
     <div className="flex flex-wrap gap-2"><Select value={status || "all"} onValueChange={(v) => setStatus(v === "all" ? "" : v)}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{["Submitted", "Accepted", "Picking", "Dispatched", "Received", "Rejected", "Cancelled"].map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select><Input className="w-40" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" /><Input className="w-40" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="To date" /></div>
     <DataTable columns={columns} data={rows} isLoading={query.isLoading} error={query.isError ? "Stock transfers could not be loaded." : null} onRetry={query.refetch} searchPlaceholder="Search request, warehouse or status…" emptyTitle="No stock transfers found" pageSize={12} />

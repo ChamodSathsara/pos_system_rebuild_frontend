@@ -5,6 +5,7 @@ export interface SystemUser {
   email?: string | null;
   mobile?: string | null;
   branchCode?: string | null;
+  warehouseCode?: string | null;
   roleId?: number | null;
   roleName?: string | null;
   isActive: boolean;
@@ -21,6 +22,7 @@ export interface CreateSystemUserRequest {
   email?: string | null;
   mobile?: string | null;
   branchCode?: string | null;
+  warehouseCode?: string | null;
   roleId?: number | null;
   isActive?: boolean;
 }
@@ -30,6 +32,7 @@ export interface UpdateSystemUserRequest {
   email?: string | null;
   mobile?: string | null;
   branchCode?: string | null;
+  warehouseCode?: string | null;
   roleId?: number | null;
   isActive: boolean;
 }

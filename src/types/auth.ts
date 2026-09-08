@@ -12,6 +12,7 @@ export interface CurrentUser {
   email?: string | null;
   mobile?: string | null;
   branchCode?: string | null;
+  warehouseCode?: string | null;
   roleId?: number | null;
   roleName?: Role | string | null;
   isActive: boolean;

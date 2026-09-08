@@ -7,6 +7,7 @@ export const qk = {
   companies: ["companies"] as const,
   branches: (companyCode?: string) => ["branches", companyCode ?? "all"] as const,
   warehouses: (branchCode?: string) => ["warehouses", branchCode ?? "all"] as const,
+  warehouse: (warehouseCode?: string) => ["warehouses", "detail", warehouseCode ?? "none"] as const,
 };
 
 export function useCompanies() {
@@ -17,8 +18,16 @@ export function useBranches(companyCode?: string) {
   return useQuery({ queryKey: qk.branches(companyCode), queryFn: () => branchesApi.list(companyCode) });
 }
 
-export function useWarehouses(branchCode?: string) {
-  return useQuery({ queryKey: qk.warehouses(branchCode), queryFn: () => warehousesApi.list(branchCode) });
+export function useWarehouses(branchCode?: string, enabled = true) {
+  return useQuery({ queryKey: qk.warehouses(branchCode), queryFn: () => warehousesApi.list(branchCode), enabled });
+}
+
+export function useWarehouse(warehouseCode?: string | null) {
+  return useQuery({
+    queryKey: qk.warehouse(warehouseCode ?? undefined),
+    queryFn: () => warehousesApi.get(warehouseCode as string),
+    enabled: !!warehouseCode,
+  });
 }
 
 export function useCreateCompany() {
