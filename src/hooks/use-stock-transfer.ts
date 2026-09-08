@@ -1,0 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
+import { stockTransfersApi, type StockTransferFilters } from "@/lib/api";
+import { useApiMutation } from "./use-api-mutation";
+import type { AcceptStockTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest } from "@/types";
+export const tq = { all: ["stock-transfers"] as const, list: (f?: StockTransferFilters) => ["stock-transfers", f ?? {}] as const };
+export const useStockTransfers = (filters?: StockTransferFilters) => useQuery({ queryKey: tq.list(filters), queryFn: () => stockTransfersApi.list(filters) });
+export const useCreateStockTransfer = () => useApiMutation((body: CreateStockTransferRequest) => stockTransfersApi.create(body), { successMessage: "Stock request submitted successfully.", invalidateKeys: [tq.all] });
+export const useAcceptStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: AcceptStockTransferRequest }) => stockTransfersApi.accept(id, body), { successMessage: "Stock request accepted.", invalidateKeys: [tq.all] });
+export const useDispatchStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: DispatchStockTransferRequest }) => stockTransfersApi.dispatch(id, body), { successMessage: "Stock dispatched successfully.", invalidateKeys: [tq.all, ["stock-inventories"], ["stock-batches"]] });
+export const useReceiveStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: ReceiveTransferRequest }) => stockTransfersApi.receive(id, body), { successMessage: "Delivery received successfully.", invalidateKeys: [tq.all, ["stock-inventories"], ["stock-batches"]] });

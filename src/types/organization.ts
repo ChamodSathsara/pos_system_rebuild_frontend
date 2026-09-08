@@ -51,6 +51,8 @@ export interface Warehouse {
   address?: string | null;
   branchCode?: string | null;
   isActive: boolean;
+  isCentralWarehouse: boolean;
+  parentWarehouseCode?: string | null;
   createdAt?: string | null;
 }
 
@@ -59,6 +61,8 @@ export interface CreateWarehouseRequest {
   address?: string | null;
   branchCode?: string | null;
   isActive?: boolean;
+  isCentralWarehouse?: boolean;
+  parentWarehouseCode?: string | null;
 }
 
 export type UpdateWarehouseRequest = CreateWarehouseRequest;

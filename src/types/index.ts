@@ -9,6 +9,7 @@ export * from "./purchase";
 export * from "./sale";
 export * from "./misc";
 export * from "./operational-report";
+export * from "./stock-transfer";
 
 export interface ApiResponse<T> {
   success: boolean;

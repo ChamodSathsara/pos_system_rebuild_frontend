@@ -96,5 +96,5 @@ export const CashierShiftHistoryAction = ["Opened", "Recalculated", "ClosedBalan
 export type CashierShiftHistoryAction = (typeof CashierShiftHistoryAction)[number];
 
 // Roles as seeded / referenced by name in the backend
-export const ROLES = ["Admin", "Manager", "Branch_Manager", "Cashier"] as const;
+export const ROLES = ["Admin", "Manager", "Branch_Manager", "InventoryClerk", "Cashier"] as const;
 export type Role = (typeof ROLES)[number];

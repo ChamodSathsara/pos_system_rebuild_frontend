@@ -27,17 +27,17 @@ export default function WarehousesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [deleting, setDeleting] = useState<Warehouse | null>(null);
-  const form = useForm({ defaultValues: { warehouseName: "", address: "", branchCode: "", isActive: true } });
+  const form = useForm({ defaultValues: { warehouseName: "", address: "", branchCode: "", isActive: true, isCentralWarehouse: false, parentWarehouseCode: "" } });
 
-  const openCreate = () => { setEditing(null); form.reset({ warehouseName: "", address: "", branchCode: "", isActive: true }); setOpen(true); };
+  const openCreate = () => { setEditing(null); form.reset({ warehouseName: "", address: "", branchCode: "", isActive: true, isCentralWarehouse: false, parentWarehouseCode: "" }); setOpen(true); };
   const openEdit = (w: Warehouse) => {
     setEditing(w);
-    form.reset({ warehouseName: w.warehouseName, address: w.address ?? "", branchCode: w.branchCode ?? "", isActive: w.isActive });
+    form.reset({ warehouseName: w.warehouseName, address: w.address ?? "", branchCode: w.branchCode ?? "", isActive: w.isActive, isCentralWarehouse: w.isCentralWarehouse ?? false, parentWarehouseCode: w.parentWarehouseCode ?? "" });
     setOpen(true);
   };
 
   const onSubmit = form.handleSubmit((v) => {
-    const body = { warehouseName: v.warehouseName, address: v.address || null, branchCode: v.branchCode || null, isActive: v.isActive };
+    const body = { warehouseName: v.warehouseName, address: v.address || null, branchCode: v.branchCode || null, isActive: v.isActive, isCentralWarehouse: v.isCentralWarehouse, parentWarehouseCode: v.isCentralWarehouse ? null : v.parentWarehouseCode || null };
     if (editing) updateM.mutate({ code: editing.warehouseCode, body }, { onSuccess: () => setOpen(false) });
     else createM.mutate(body, { onSuccess: () => setOpen(false) });
   });
@@ -47,6 +47,8 @@ export default function WarehousesPage() {
       { accessorKey: "warehouseCode", header: "Code" },
       { accessorKey: "warehouseName", header: "Warehouse Name" },
       { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => row.original.branchCode || "—" },
+      { accessorKey: "isCentralWarehouse", header: "Type", cell: ({ row }) => <Badge variant={row.original.isCentralWarehouse ? "default" : "outline"}>{row.original.isCentralWarehouse ? "Main" : "Branch"}</Badge> },
+      { accessorKey: "parentWarehouseCode", header: "Parent", cell: ({ row }) => row.original.parentWarehouseCode || "—" },
       { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "success" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
       { id: "actions", header: "", cell: ({ row }) => (
         <div className="flex justify-end gap-1">
@@ -73,6 +75,14 @@ export default function WarehousesPage() {
             </Select>
           </div>
           <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isActive")} onCheckedChange={(v) => form.setValue("isActive", v)} /><Label>Active</Label></div>
+          <div className="flex items-center gap-2 pt-6"><Switch checked={form.watch("isCentralWarehouse")} onCheckedChange={(v) => { form.setValue("isCentralWarehouse", v); if (v) form.setValue("parentWarehouseCode", ""); }} /><Label>Main / Central Warehouse</Label></div>
+          {!form.watch("isCentralWarehouse") && <div className="space-y-1.5">
+            <Label>Parent Main Warehouse</Label>
+            <Select value={form.watch("parentWarehouseCode")} onValueChange={(v) => form.setValue("parentWarehouseCode", v)}>
+              <SelectTrigger><SelectValue placeholder="Select main warehouse" /></SelectTrigger>
+              <SelectContent>{data?.filter((w) => w.isCentralWarehouse && w.warehouseCode !== editing?.warehouseCode).map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName} ({w.warehouseCode})</SelectItem>)}</SelectContent>
+            </Select>
+          </div>}
           <div className="col-span-2 space-y-1.5"><Label>Address</Label><Input {...form.register("address")} /></div>
         </div>
       </FormDialog>
