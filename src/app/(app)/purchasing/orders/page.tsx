@@ -124,6 +124,7 @@ function CreatePODialog({ open, onOpenChange, defaultBranch }: { open: boolean; 
     }
     const internal = v.supplier.startsWith("centralWarehouse:");
     if (internal && !v.destinationWarehouseCode) { toast.error("Select the destination branch warehouse for this Internal Transfer PO."); return; }
+    if (v.items.some((item) => item.itemCode && (!Number.isInteger(Number(item.quantity)) || Number(item.quantity) <= 0))) { toast.error("PO quantities must be positive whole numbers such as 10, 20, or 30."); return; }
     const items = v.items.filter((i) => i.itemCode && i.quantity && i.unitCost).map((i) => ({ itemCode: i.itemCode, quantity: Number(i.quantity), unitCost: Number(i.unitCost) }));
     if (items.length === 0) {
       toast.error("Add at least one line item.");
@@ -180,7 +181,7 @@ function CreatePODialog({ open, onOpenChange, defaultBranch }: { open: boolean; 
               <div className="min-w-0 flex-1">
                 <ProductSelector products={products ?? []} value={selectedItems?.[idx]?.itemCode ?? ""} onChange={(value) => form.setValue(`items.${idx}.itemCode`, value, { shouldDirty: true })} isLoading={productsLoading} />
               </div>
-              <Input placeholder="Qty" type="number" step="0.01" className="w-24" {...form.register(`items.${idx}.quantity` as const)} />
+              <Input placeholder="Qty" type="number" min="1" step="1" className="w-24" {...form.register(`items.${idx}.quantity` as const)} />
               <Input placeholder="Unit cost" type="number" step="0.01" className="w-28" {...form.register(`items.${idx}.unitCost` as const)} />
               <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => remove(idx)} disabled={fields.length === 1}>
                 <Trash2 className="h-4 w-4" />
