@@ -29,6 +29,8 @@ export default function StockLevelsPage() {
   const [detailFor, setDetailFor] = useState<StockInventory | null>(null);
 
   const { data, isLoading, isError, refetch } = useStockInventories({ branchCode, onlyBelowReorderLevel: onlyLow || undefined });
+  const { data: lowStockData } = useStockInventories({ branchCode, onlyBelowReorderLevel: true });
+  const lowStockIds = useMemo(() => new Set((lowStockData ?? []).map((stock) => stock.stockId)), [lowStockData]);
 
   const columns = useMemo<ColumnDef<StockInventory>[]>(
     () => [
@@ -36,7 +38,26 @@ export default function StockLevelsPage() {
       { accessorKey: "itemName", header: "Item", cell: ({ row }) => row.original.itemName || "—" },
       { accessorKey: "branchCode", header: "Branch" },
       { accessorKey: "warehouseCode", header: "Warehouse" },
-      { accessorKey: "currentQty", header: "Qty on Hand", cell: ({ row }) => <span className="num font-semibold">{row.original.currentQty}</span> },
+      {
+        accessorKey: "currentQty",
+        header: "Qty on Hand",
+        cell: ({ row }) => {
+          const isLow = lowStockIds.has(row.original.stockId);
+          const isOut = row.original.currentQty <= 0;
+          return (
+            <div className="flex items-center gap-2">
+              <span className={`num font-semibold ${isOut ? "text-destructive" : isLow ? "text-warning" : ""}`}>
+                {row.original.currentQty}
+              </span>
+              {isOut ? (
+                <Badge variant="destructive" className="text-[10px]">Out of stock</Badge>
+              ) : isLow ? (
+                <Badge variant="outline" className="border-warning/40 bg-warning/10 text-[10px] text-warning">Low stock</Badge>
+              ) : null}
+            </div>
+          );
+        },
+      },
       { accessorKey: "lastUpdated", header: "Last Updated", cell: ({ row }) => formatDateTime(row.original.lastUpdated) },
       {
         id: "actions",
@@ -48,7 +69,7 @@ export default function StockLevelsPage() {
         ),
       },
     ],
-    []
+    [lowStockIds]
   );
 
   return (
@@ -75,6 +96,13 @@ export default function StockLevelsPage() {
         searchPlaceholder="Search by item…"
         emptyTitle="No stock records found"
         pageSize={12}
+        getRowClassName={(stock) =>
+          stock.currentQty <= 0
+            ? "bg-destructive/10 hover:bg-destructive/15"
+            : lowStockIds.has(stock.stockId)
+              ? "bg-warning/10 hover:bg-warning/15"
+              : undefined
+        }
       />
 
       <StockDetailSheet stock={detailFor} onClose={() => setDetailFor(null)} />
