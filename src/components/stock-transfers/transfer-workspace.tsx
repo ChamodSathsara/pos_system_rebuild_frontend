@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
 import { useWarehouse, useWarehouses } from "@/hooks/use-organization";
 import { useProducts } from "@/hooks/use-catalog";
@@ -49,13 +50,15 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
   const [branchAcceptFor, setBranchAcceptFor] = useState<StockTransfer | null>(null);
   const [dispatchFor, setDispatchFor] = useState<StockTransfer | null>(null);
   const [receiveFor, setReceiveFor] = useState<{ transfer: StockTransfer; dispatch: TransferDispatch } | null>(null);
+  const [detailFor, setDetailFor] = useState<StockTransfer | null>(null);
   const title = { requests: "Stock Requests", queue: "Main Warehouse Request Queue", dispatches: "Dispatch History", incoming: "Incoming Deliveries" }[mode];
   const columns: ColumnDef<StockTransfer>[] = [
-    { accessorKey: "requestNo", header: "Request" },
+    { accessorKey: "requestNo", header: "Request", cell: ({ row }) => <Button type="button" variant="link" className="h-auto p-0 font-medium" onClick={() => setDetailFor(row.original)}>{row.original.requestNo}</Button> },
     { accessorKey: "requestDate", header: "Requested", cell: ({ row }) => formatDateTime(row.original.requestDate) },
     { accessorKey: "sourceWarehouseCode", header: "From" },
     { accessorKey: "destinationWarehouseCode", header: "To" },
     { id: "items", header: "Items", cell: ({ row }) => row.original.lines.length },
+    { id: "totalQty", header: "Total Qty", cell: ({ row }) => <span className="num font-medium">{row.original.lines.reduce((sum, line) => sum + line.requestedQty, 0)}</span> },
     { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant="outline" className={statusClass[row.original.status]}>{statusLabel[row.original.status] || row.original.status}</Badge> },
     { id: "actions", header: "", cell: ({ row }) => <TransferActions transfer={row.original} mode={mode} onBranchAccept={setBranchAcceptFor} onAccept={setAcceptFor} onDispatch={setDispatchFor} onReceive={(transfer, dispatch) => setReceiveFor({ transfer, dispatch })} /> },
   ];
@@ -77,8 +80,21 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
     {branchAcceptFor && <BranchAcceptDialog transfer={branchAcceptFor} onClose={() => setBranchAcceptFor(null)} />}
     {dispatchFor && <DispatchDialog transfer={dispatchFor} onClose={() => setDispatchFor(null)} />}
     {receiveFor && <ReceiveDialog transfer={receiveFor.transfer} dispatch={receiveFor.dispatch} onClose={() => setReceiveFor(null)} />}
+    <TransferDetailSheet transfer={detailFor} onClose={() => setDetailFor(null)} />
   </div>;
 }
+
+function TransferDetailSheet({ transfer, onClose }: { transfer: StockTransfer | null; onClose: () => void }) {
+  const total = transfer?.lines.reduce((sum, line) => sum + line.requestedQty, 0) ?? 0;
+  return <Sheet open={!!transfer} onOpenChange={(open) => !open && onClose()}><SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader><SheetTitle>{transfer?.requestNo || "Transfer Request"}</SheetTitle></SheetHeader>{transfer && <div className="mt-5 space-y-5">
+    <div className="grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm"><Detail label="Status" value={statusLabel[transfer.status] || transfer.status} /><Detail label="Requested" value={formatDateTime(transfer.requestDate)} /><Detail label="Source" value={transfer.sourceWarehouseName ? `${transfer.sourceWarehouseName} (${transfer.sourceWarehouseCode})` : transfer.sourceWarehouseCode} /><Detail label="Destination" value={transfer.destinationWarehouseName ? `${transfer.destinationWarehouseName} (${transfer.destinationWarehouseCode})` : transfer.destinationWarehouseCode} /><Detail label="Required Date" value={transfer.requiredDate ? formatDateTime(transfer.requiredDate) : "—"} /><Detail label="Total Quantity" value={String(total)} /></div>
+    <div><h3 className="mb-2 text-sm font-semibold">Requested Items</h3><div className="space-y-2">{transfer.lines.map((line) => <div key={line.transferRequestLineId} className="rounded-lg border p-3"><div className="flex items-center justify-between"><p className="font-medium">{line.itemName || line.itemCode}</p><p className="text-sm text-muted-foreground">{line.itemCode}</p></div><div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4"><Detail label="Requested" value={String(line.requestedQty)} /><Detail label="Approved" value={String(line.approvedQty)} /><Detail label="Dispatched" value={String(line.dispatchedQty)} /><Detail label="Received" value={String(line.receivedQty)} /></div>{line.remarks && <p className="mt-2 text-xs text-muted-foreground">{line.remarks}</p>}</div>)}</div></div>
+    {transfer.remarks && <div><h3 className="mb-1 text-sm font-semibold">Request Remarks</h3><p className="rounded-lg border p-3 text-sm text-muted-foreground">{transfer.remarks}</p></div>}
+    {!!transfer.dispatches?.length && <div><h3 className="mb-2 text-sm font-semibold">Dispatch Information</h3><div className="space-y-2">{transfer.dispatches.map((dispatch) => <div key={dispatch.dispatchId} className="rounded-lg border p-3 text-sm"><div className="flex justify-between"><p className="font-medium">{dispatch.dispatchNo}</p><Button size="xs" variant="outline" onClick={() => void stockTransfersApi.deliveryNote(dispatch.dispatchId, dispatch.dispatchNo)}><Download /> Delivery Note</Button></div><p className="mt-1 text-muted-foreground">{formatDateTime(dispatch.dispatchedAt)} · {dispatch.vehicleNo || "No vehicle"} · {dispatch.driverName || "No driver"}</p></div>)}</div></div>}
+  </div>}</SheetContent></Sheet>;
+}
+
+function Detail({ label, value }: { label: string; value: string }) { return <div><p className="text-xs text-muted-foreground">{label}</p><p className="mt-0.5 font-medium">{value}</p></div>; }
 
 function TransferActions({ transfer, mode, onBranchAccept, onAccept, onDispatch, onReceive }: { transfer: StockTransfer; mode: Mode; onBranchAccept: (x: StockTransfer) => void; onAccept: (x: StockTransfer) => void; onDispatch: (x: StockTransfer) => void; onReceive: (x: StockTransfer, d: TransferDispatch) => void }) {
   const dispatch = transfer.dispatches?.at(-1);
