@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuthStore } from "@/store/auth-store";
 import { useWarehouse, useWarehouses } from "@/hooks/use-organization";
 import { useProducts } from "@/hooks/use-catalog";
-import { useAcceptStockTransfer, useCreateStockTransfer, useDispatchStockTransfer, useReceiveStockTransfer, useStockTransfers } from "@/hooks/use-stock-transfer";
+import { useAcceptStockTransfer, useBranchAcceptTransfer, useCreateStockTransfer, useDispatchStockTransfer, useReceiveStockTransfer, useStockTransfers } from "@/hooks/use-stock-transfer";
 import { stockBatchesApi, stockInventoriesApi, stockTransfersApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -25,7 +25,8 @@ type Mode = "requests" | "queue" | "dispatches" | "incoming";
 type RequestLineDraft = { itemCode: string; quantity: string; remarks: string };
 type DispatchDraft = { transferRequestLineId: number; itemCode: string; batchId: string; quantity: string };
 type ReceiveDraft = { dispatchLineId: number; dispatchedQty: number; receivedQty: string; damagedQty: string; shortQty: string; remarks: string };
-const statusClass: Record<string, string> = { Submitted: "bg-warning/15 text-warning", Accepted: "bg-primary/10 text-primary", Picking: "bg-primary/10 text-primary", Dispatched: "bg-blue-500/10 text-blue-700", Received: "bg-success/15 text-success", Rejected: "bg-destructive/10 text-destructive", Cancelled: "bg-muted text-muted-foreground" };
+const statusClass: Record<string, string> = { Submitted: "bg-warning/15 text-warning", AwaitingBranch: "bg-warning/15 text-warning", Accepted: "bg-primary/10 text-primary", Picking: "bg-primary/10 text-primary", Dispatched: "bg-blue-500/10 text-blue-700", Received: "bg-success/15 text-success", Rejected: "bg-destructive/10 text-destructive", Cancelled: "bg-muted text-muted-foreground" };
+const statusLabel: Record<string, string> = { AwaitingBranch: "Waiting for Branch Acceptance", Accepted: "Central Dispatch Queue", Dispatched: "In Transit", Received: "Completed" };
 
 export function TransferWorkspace({ mode }: { mode: Mode }) {
   const user = useAuthStore((s) => s.user);
@@ -39,12 +40,13 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
   const [warehouseCode, setWarehouseCode] = useState("");
   const [status, setStatus] = useState(""); const [fromDate, setFromDate] = useState(""); const [toDate, setToDate] = useState("");
   const effectiveWarehouse = isInventoryClerk ? user?.warehouseCode ?? "" : warehouseCode || (mode === "queue" || mode === "dispatches" ? central[0]?.warehouseCode : ownWarehouses[0]?.warehouseCode) || "";
-  const filters = { ...(mode === "queue" || mode === "dispatches" ? { sourceWarehouseCode: effectiveWarehouse } : { destinationWarehouseCode: effectiveWarehouse }), status: (mode === "incoming" ? "Dispatched" : status || undefined) as import("@/types").StockTransferStatus | undefined, fromDate: fromDate || undefined, toDate: toDate || undefined };
+  const filters = { ...(mode === "queue" || mode === "dispatches" ? { sourceWarehouseCode: effectiveWarehouse } : { destinationWarehouseCode: effectiveWarehouse }), status: (status || undefined) as import("@/types").StockTransferStatus | undefined, fromDate: fromDate || undefined, toDate: toDate || undefined };
   const query = useStockTransfers(effectiveWarehouse ? filters : undefined, !!effectiveWarehouse);
-  const rows = useMemo(() => (query.data ?? []).filter((t) => (mode !== "incoming" || t.status === "Dispatched") && (mode !== "dispatches" || ["Dispatched", "Received"].includes(t.status))), [query.data, mode]);
+  const rows = useMemo(() => (query.data ?? []).filter((t) => (mode !== "queue" || ["Accepted", "Picking"].includes(t.status)) && (mode !== "incoming" || ["AwaitingBranch", "Accepted", "Dispatched", "Received"].includes(t.status)) && (mode !== "dispatches" || ["Dispatched", "Received"].includes(t.status))), [query.data, mode]);
   const counts = useMemo(() => ({ pending: rows.filter((x) => x.status === "Submitted").length, accepted: rows.filter((x) => x.status === "Accepted").length, ready: rows.filter((x) => x.status === "Picking").length, transit: rows.filter((x) => x.status === "Dispatched").length, received: rows.filter((x) => x.status === "Received" && new Date(x.requestDate).toDateString() === new Date().toDateString()).length, dispatchQty: rows.flatMap((x) => x.dispatches ?? []).filter((d) => new Date(d.dispatchedAt).toDateString() === new Date().toDateString()).flatMap((d) => d.lines).reduce((sum, x) => sum + x.quantity, 0) }), [rows]);
   const [createOpen, setCreateOpen] = useState(false);
   const [acceptFor, setAcceptFor] = useState<StockTransfer | null>(null);
+  const [branchAcceptFor, setBranchAcceptFor] = useState<StockTransfer | null>(null);
   const [dispatchFor, setDispatchFor] = useState<StockTransfer | null>(null);
   const [receiveFor, setReceiveFor] = useState<{ transfer: StockTransfer; dispatch: TransferDispatch } | null>(null);
   const title = { requests: "Stock Requests", queue: "Main Warehouse Request Queue", dispatches: "Dispatch History", incoming: "Incoming Deliveries" }[mode];
@@ -54,8 +56,8 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
     { accessorKey: "sourceWarehouseCode", header: "From" },
     { accessorKey: "destinationWarehouseCode", header: "To" },
     { id: "items", header: "Items", cell: ({ row }) => row.original.lines.length },
-    { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant="outline" className={statusClass[row.original.status]}>{row.original.status}</Badge> },
-    { id: "actions", header: "", cell: ({ row }) => <TransferActions transfer={row.original} mode={mode} onAccept={setAcceptFor} onDispatch={setDispatchFor} onReceive={(transfer, dispatch) => setReceiveFor({ transfer, dispatch })} /> },
+    { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant="outline" className={statusClass[row.original.status]}>{statusLabel[row.original.status] || row.original.status}</Badge> },
+    { id: "actions", header: "", cell: ({ row }) => <TransferActions transfer={row.original} mode={mode} onBranchAccept={setBranchAcceptFor} onAccept={setAcceptFor} onDispatch={setDispatchFor} onReceive={(transfer, dispatch) => setReceiveFor({ transfer, dispatch })} /> },
   ];
   const selectorWarehouses = mode === "queue" || mode === "dispatches" ? central : ownWarehouses;
   if (isInventoryClerk && !user?.warehouseCode) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Main Warehouse is not assigned.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin. Warehouse actions are unavailable until a Main Warehouse is assigned, then sign out and sign in again.</p></div>;
@@ -68,21 +70,23 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
     </div>} />
     {isInventoryClerk && assignedWarehouse && <div className="rounded-xl border bg-card p-4"><p className="font-medium">{assignedWarehouse.warehouseName}</p><p className="mt-1 text-sm text-muted-foreground">{assignedWarehouse.warehouseCode} · {assignedWarehouse.address || "No address recorded"}</p></div>}
     <div className={`grid gap-3 ${mode === "queue" ? "sm:grid-cols-5" : "sm:grid-cols-3"}`}>{(mode === "queue" ? [["Pending Requests", counts.pending], ["Accepted", counts.accepted], ["Ready to Dispatch", counts.ready], ["In Transit", counts.transit], ["Today's Dispatch Qty", counts.dispatchQty]] : [["Pending Requests", counts.pending], ["In Transit Deliveries", counts.transit], ["Received Today", counts.received]]).map(([label, value]) => <div key={String(label)} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}</div>
-    <div className="flex flex-wrap gap-2"><Select value={status || "all"} onValueChange={(v) => setStatus(v === "all" ? "" : v)}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{["Submitted", "Accepted", "Picking", "Dispatched", "Received", "Rejected", "Cancelled"].map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select><Input className="w-40" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" /><Input className="w-40" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="To date" /></div>
+    <div className="flex flex-wrap gap-2"><Select value={status || "all"} onValueChange={(v) => setStatus(v === "all" ? "" : v)}><SelectTrigger className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{["Submitted", "AwaitingBranch", "Accepted", "Picking", "Dispatched", "Received", "Rejected", "Cancelled"].map((x) => <SelectItem key={x} value={x}>{statusLabel[x] || x}</SelectItem>)}</SelectContent></Select><Input className="w-40" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" /><Input className="w-40" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="To date" /></div>
     <DataTable columns={columns} data={rows} isLoading={query.isLoading} error={query.isError ? "Stock transfers could not be loaded." : null} onRetry={query.refetch} searchPlaceholder="Search request, warehouse or status…" emptyTitle="No stock transfers found" pageSize={12} />
     {createOpen && <CreateRequestDialog destinationCode={effectiveWarehouse} warehouses={warehouses ?? []} products={products ?? []} lockSource={user?.roleName === "Branch_Manager"} onClose={() => setCreateOpen(false)} />}
     {acceptFor && <AcceptDialog transfer={acceptFor} onClose={() => setAcceptFor(null)} />}
+    {branchAcceptFor && <BranchAcceptDialog transfer={branchAcceptFor} onClose={() => setBranchAcceptFor(null)} />}
     {dispatchFor && <DispatchDialog transfer={dispatchFor} onClose={() => setDispatchFor(null)} />}
     {receiveFor && <ReceiveDialog transfer={receiveFor.transfer} dispatch={receiveFor.dispatch} onClose={() => setReceiveFor(null)} />}
   </div>;
 }
 
-function TransferActions({ transfer, mode, onAccept, onDispatch, onReceive }: { transfer: StockTransfer; mode: Mode; onAccept: (x: StockTransfer) => void; onDispatch: (x: StockTransfer) => void; onReceive: (x: StockTransfer, d: TransferDispatch) => void }) {
+function TransferActions({ transfer, mode, onBranchAccept, onAccept, onDispatch, onReceive }: { transfer: StockTransfer; mode: Mode; onBranchAccept: (x: StockTransfer) => void; onAccept: (x: StockTransfer) => void; onDispatch: (x: StockTransfer) => void; onReceive: (x: StockTransfer, d: TransferDispatch) => void }) {
   const dispatch = transfer.dispatches?.at(-1);
   return <div className="flex justify-end gap-1">
+    {mode === "incoming" && transfer.status === "AwaitingBranch" && <Button size="xs" onClick={() => onBranchAccept(transfer)}>Accept Transfer</Button>}
     {mode === "queue" && transfer.status === "Submitted" && <Button size="xs" onClick={() => onAccept(transfer)}>Accept</Button>}
     {mode === "queue" && ["Accepted", "Picking"].includes(transfer.status) && <Button size="xs" onClick={() => onDispatch(transfer)}><Truck /> Dispatch</Button>}
-    {mode === "incoming" && dispatch && <Button size="xs" onClick={() => onReceive(transfer, dispatch)}><CheckCircle2 /> Receive</Button>}
+    {mode === "incoming" && transfer.status === "Dispatched" && dispatch && <Button size="xs" onClick={() => onReceive(transfer, dispatch)}><CheckCircle2 /> Receive / GRN</Button>}
     {dispatch && <Button size="xs" variant="outline" onClick={() => void stockTransfersApi.deliveryNote(dispatch.dispatchId, dispatch.dispatchNo)}><Download /> Delivery Note</Button>}
   </div>;
 }
@@ -94,6 +98,12 @@ function CreateRequestDialog({ destinationCode, warehouses, products, lockSource
   const [lines, setLines] = useState<RequestLineDraft[]>([{ itemCode: "", quantity: "", remarks: "" }]); const mutation = useCreateStockTransfer();
   const submit = () => { if (!source || !destinationCode || !requiredDate || lines.some((x) => !x.itemCode || Number(x.quantity) <= 0)) { toast.error("Source, destination, required date, item and positive quantity are required."); return; } mutation.mutate({ sourceWarehouseCode: source, destinationWarehouseCode: destinationCode, requiredDate: new Date(`${requiredDate}T00:00:00Z`).toISOString(), remarks: remarks || null, lines: lines.map((x) => ({ itemCode: x.itemCode, quantity: Number(x.quantity), remarks: x.remarks || null })) }, { onSuccess: onClose }); };
   return <FormDialog open onOpenChange={(o) => !o && onClose()} title="New Stock Request" description="Request stock from the assigned Main Warehouse." onSubmit={submit} isSubmitting={mutation.isPending} submitLabel="Submit Request" className="sm:max-w-3xl"><div className="grid grid-cols-2 gap-3"><Field label="Source"><Select value={source} onValueChange={setSource} disabled={lockSource || !!destination?.parentWarehouseCode}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{warehouses.filter((w) => w.isCentralWarehouse).map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName}</SelectItem>)}</SelectContent></Select></Field><Field label="Destination"><Input value={destinationCode} disabled /></Field><Field label="Required Date"><Input type="date" value={requiredDate} onChange={(e) => setRequiredDate(e.target.value)} /></Field><Field label="Remarks"><Input value={remarks} onChange={(e) => setRemarks(e.target.value)} /></Field></div>{lines.map((line, i) => <div key={i} className="grid grid-cols-[1fr_120px_1fr_auto] gap-2"><Select value={line.itemCode} onValueChange={(v) => setLines((a) => a.map((x, n) => n === i ? { ...x, itemCode: v } : x))}><SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger><SelectContent>{products.map((p) => <SelectItem key={p.itemCode} value={p.itemCode}>{p.itemName} ({p.itemCode})</SelectItem>)}</SelectContent></Select><Input type="number" min="0.01" placeholder="Qty" value={line.quantity} onChange={(e) => setLines((a) => a.map((x, n) => n === i ? { ...x, quantity: e.target.value } : x))} /><Input placeholder="Line remarks" value={line.remarks} onChange={(e) => setLines((a) => a.map((x, n) => n === i ? { ...x, remarks: e.target.value } : x))} /><Button type="button" variant="ghost" disabled={lines.length === 1} onClick={() => setLines((a) => a.filter((_, n) => n !== i))}>Remove</Button></div>)}<Button type="button" variant="outline" onClick={() => setLines((a) => [...a, { itemCode: "", quantity: "", remarks: "" }])}><Plus /> Add Item</Button></FormDialog>;
+}
+
+function BranchAcceptDialog({ transfer, onClose }: { transfer: StockTransfer; onClose: () => void }) {
+  const mutation = useBranchAcceptTransfer(); const [remarks, setRemarks] = useState(""); const [confirm, setConfirm] = useState(false);
+  const accept = () => mutation.mutate({ id: transfer.transferRequestId, body: { remarks: remarks.trim() || null } }, { onSuccess: () => { setConfirm(false); onClose(); } });
+  return <><FormDialog open onOpenChange={(open) => !open && onClose()} title={`Accept transfer ${transfer.requestNo}?`} description={`From ${transfer.sourceWarehouseName || transfer.sourceWarehouseCode}. Central stock will remain unchanged until dispatch.`} onSubmit={() => setConfirm(true)} isSubmitting={mutation.isPending} submitLabel="Review Acceptance"><div className="rounded-lg border p-3"><p className="text-sm font-medium">Requested items</p>{transfer.lines.map((line) => <div key={line.transferRequestLineId} className="mt-2 flex justify-between text-sm"><span>{line.itemName || line.itemCode}</span><span className="font-medium">{line.requestedQty}</span></div>)}</div><Field label="Branch Remarks"><Textarea value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Accepted by branch..." /></Field></FormDialog><ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Confirm branch acceptance?" description="The proposal will move to the Central Warehouse dispatch queue. No stock changes happen yet." confirmLabel="Accept Transfer" loading={mutation.isPending} onConfirm={accept} /></>;
 }
 
 function AcceptDialog({ transfer, onClose }: { transfer: StockTransfer; onClose: () => void }) {
