@@ -6,7 +6,7 @@ export type CustomerType = (typeof CustomerType)[number];
 export const BranchStatus = ["Active", "Inactive"] as const;
 export type BranchStatus = (typeof BranchStatus)[number];
 
-export const UnitOfMeasure = ["PCS", "KG", "LTR", "L", "ML", "M", "CM", "PACK", "BOX", "DOZEN"] as const;
+export const UnitOfMeasure = ["PCS", "BOTTLE", "KG", "LTR", "L", "ML", "M", "CM", "PACK", "BOX", "DOZEN"] as const;
 export type UnitOfMeasure = (typeof UnitOfMeasure)[number];
 
 export const ItemGroup = ["Machinery", "Consumables", "Stationery", "SpareParts", "Services"] as const;
