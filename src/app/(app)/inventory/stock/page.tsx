@@ -14,28 +14,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCreateStockBatch, useStockBatches, useReconcileStock, useStockInventories, useStockMovements, useUpdateBatchSellingPrice } from "@/hooks/use-stock";
 import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
-import { useWarehouse } from "@/hooks/use-organization";
+import { useWarehouse, useWarehouses } from "@/hooks/use-organization";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import type { StockBatch, StockInventory } from "@/types";
 import { toast } from "sonner";
 
-export default function StockLevelsPage() {
+export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean }) {
   const user = useAuthStore((state) => state.user);
   const isInventoryClerk = user?.roleName === "InventoryClerk";
   const assignedWarehouseCode = isInventoryClerk ? user?.warehouseCode ?? "" : "";
   const assignedWarehouse = useWarehouse(isInventoryClerk ? assignedWarehouseCode : undefined);
+  const allWarehouses = useWarehouses(undefined, !isInventoryClerk);
+  const warehouseList = isInventoryClerk ? (assignedWarehouse.data ? [assignedWarehouse.data] : []) : (allWarehouses.data ?? []);
+  const centralWarehouses = warehouseList.filter((warehouse) => warehouse.isCentralWarehouse && warehouse.isActive);
+  const centralCodes = useMemo(() => new Set(centralWarehouses.map((warehouse) => warehouse.warehouseCode)), [centralWarehouses]);
+  const [centralWarehouseCode, setCentralWarehouseCode] = useState("");
+  const effectiveCentralCode = assignedWarehouseCode || centralWarehouseCode || centralWarehouses[0]?.warehouseCode || "";
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
   const [onlyLow, setOnlyLow] = useState(false);
   const [detailFor, setDetailFor] = useState<StockInventory | null>(null);
 
-  const stockScope = { branchCode: isInventoryClerk ? undefined : branchCode, warehouseCode: assignedWarehouseCode || undefined };
-  const { data, isLoading, isError, refetch } = useStockInventories({ ...stockScope, onlyBelowReorderLevel: onlyLow || undefined }, !isInventoryClerk || !!assignedWarehouseCode);
-  const { data: lowStockData } = useStockInventories({ ...stockScope, onlyBelowReorderLevel: true }, !isInventoryClerk || !!assignedWarehouseCode);
+  const stockScope = centralOnly ? { warehouseCode: effectiveCentralCode || undefined } : { branchCode };
+  const queryEnabled = centralOnly ? !!effectiveCentralCode : !allWarehouses.isLoading;
+  const stockQuery = useStockInventories({ ...stockScope, onlyBelowReorderLevel: onlyLow || undefined }, queryEnabled);
+  const lowStockQuery = useStockInventories({ ...stockScope, onlyBelowReorderLevel: true }, queryEnabled);
+  const filterScope = (stocks: StockInventory[]) => stocks.filter((stock) => centralOnly ? centralCodes.has(stock.warehouseCode) : !centralCodes.has(stock.warehouseCode));
+  const data = filterScope(stockQuery.data ?? []);
+  const lowStockData = filterScope(lowStockQuery.data ?? []);
+  const { isLoading, isError, refetch } = stockQuery;
   const lowStockIds = useMemo(() => new Set((lowStockData ?? []).map((stock) => stock.stockId)), [lowStockData]);
 
   const columns = useMemo<ColumnDef<StockInventory>[]>(
@@ -84,22 +96,22 @@ export default function StockLevelsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Stock Levels"
-        description="Live stock quantities per item, branch, and warehouse."
+        title={centralOnly ? "Main Warehouse Batch Stock" : "Branch Warehouse Stock Levels"}
+        description={centralOnly ? "Stock held only in the selected Central Main Warehouse." : "Stock held only in branch warehouses."}
         actions={
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <Switch checked={onlyLow} onCheckedChange={setOnlyLow} /> Below reorder only
             </label>
-            {!isInventoryClerk && <BranchFilter value={branchFilter} onChange={setBranchFilter} />}
+            {centralOnly ? <Select value={effectiveCentralCode} onValueChange={setCentralWarehouseCode} disabled={isInventoryClerk}><SelectTrigger className="w-64"><SelectValue placeholder="Select Central Warehouse" /></SelectTrigger><SelectContent>{centralWarehouses.map((warehouse) => <SelectItem key={warehouse.warehouseCode} value={warehouse.warehouseCode}>{warehouse.warehouseName} ({warehouse.warehouseCode})</SelectItem>)}</SelectContent></Select> : <BranchFilter value={branchFilter} onChange={setBranchFilter} />}
           </div>
         }
       />
 
       <DataTable
         columns={columns}
-        data={data ?? []}
-        isLoading={isLoading}
+        data={data}
+        isLoading={isLoading || (!isInventoryClerk && allWarehouses.isLoading)}
         error={isError ? "Failed to load stock." : null}
         onRetry={refetch}
         searchPlaceholder="Search by item…"
@@ -114,12 +126,14 @@ export default function StockLevelsPage() {
         }
       />
 
-      <StockDetailSheet stock={detailFor} onClose={() => setDetailFor(null)} />
+      <StockDetailSheet stock={detailFor} allowReceive={!centralOnly} onClose={() => setDetailFor(null)} />
     </div>
   );
 }
 
-function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; onClose: () => void }) {
+export default function Page() { return <StockLevelsPage />; }
+
+function StockDetailSheet({ stock, allowReceive, onClose }: { stock: StockInventory | null; allowReceive: boolean; onClose: () => void }) {
   const { data: batches, isLoading } = useStockBatches(stock?.stockId);
   const { data: movements } = useStockMovements({ stockId: stock?.stockId });
   const reconcileM = useReconcileStock();
@@ -137,9 +151,9 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
           </SheetHeader>
 
           <div className="mt-4 flex gap-2">
-            <Button size="sm" onClick={() => setReceiveOpen(true)}>
+            {allowReceive && <Button size="sm" onClick={() => setReceiveOpen(true)}>
               <PackagePlus className="h-4 w-4" /> Receive Stock
-            </Button>
+            </Button>}
             <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
               <History className="h-4 w-4" /> Movement History
             </Button>
@@ -185,7 +199,7 @@ function StockDetailSheet({ stock, onClose }: { stock: StockInventory | null; on
         </SheetContent>
       </Sheet>
 
-      {stock && <ReceiveStockDialog stockId={stock.stockId} open={receiveOpen} onOpenChange={setReceiveOpen} />}
+      {stock && allowReceive && <ReceiveStockDialog stockId={stock.stockId} open={receiveOpen} onOpenChange={setReceiveOpen} />}
       {priceFor && <ChangeSellingPriceDialog key={priceFor.batchId} batch={priceFor} onClose={() => setPriceFor(null)} />}
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>

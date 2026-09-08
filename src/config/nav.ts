@@ -71,9 +71,12 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Main Warehouse",
     items: [
       { label: "Dashboard", href: "/inventory/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Batch Stock", href: "/inventory/stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Batch Stock", href: "/inventory/central-stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Stock In", href: "/inventory/central-stock-in", icon: PackagePlus, roles: ["InventoryClerk"] },
+      { label: "Damage", href: "/inventory/central-damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
       { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Direct Transfer", href: "/inventory/direct-transfer", icon: Truck, roles: ["InventoryClerk"] },
     ],
   },
   {

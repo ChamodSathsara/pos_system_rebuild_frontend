@@ -89,13 +89,13 @@ export function useDamageItems(params?: {
   branchCode?: string;
   warehouseCode?: string;
   status?: DamageItemStatus;
-}) {
-  return useQuery({ queryKey: sq.damage(params), queryFn: () => damageItemsApi.list(params) });
+}, enabled = true) {
+  return useQuery({ queryKey: sq.damage(params), queryFn: () => damageItemsApi.list(params), enabled });
 }
 export function useCreateDamageItem() {
   return useApiMutation((body: CreateDamageItemRequest) => damageItemsApi.create(body), {
     successMessage: "Damage reported",
-    invalidateKeys: [["damage-items"]],
+    invalidateKeys: [["damage-items"], ["stock-inventories"], ["stock-batches"]],
   });
 }
 export function useUpdateDamageItem() {

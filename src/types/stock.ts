@@ -18,7 +18,7 @@ export interface CreateStockInventoryRequest {
 
 export interface CreateOpeningStockRequest {
   itemCode: string;
-  branchCode: string;
+  branchCode: string | null;
   warehouseCode: string;
   quantity: number;
   unitCost: number;
@@ -120,6 +120,9 @@ export interface DamageItem {
   branchName?: string | null;
   warehouseCode?: string | null;
   warehouseName?: string | null;
+  stockId?: number | null;
+  batchId?: number | null;
+  batchNo?: string | null;
   quantity?: number | null;
   costAmount?: number | null;
   reason?: string | null;
@@ -131,7 +134,7 @@ export interface DamageItem {
 
 export interface CreateDamageItemRequest {
   itemCode: string;
-  branchCode: string;
+  branchCode: string | null;
   warehouseCode?: string | null;
   quantity: number;
   costAmount?: number | null;

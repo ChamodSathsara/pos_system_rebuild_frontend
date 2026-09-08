@@ -1,5 +1,5 @@
 import { api, cleanParams, httpClient } from "./client";
-import type { AcceptStockTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest, StockTransfer, StockTransferStatus, TransferDispatch, TransferReceipt } from "@/types";
+import type { AcceptStockTransferRequest, CreateStockTransferRequest, DirectDispatchRequest, DispatchStockTransferRequest, ReceiveTransferRequest, StockTransfer, StockTransferStatus, TransferDispatch, TransferReceipt } from "@/types";
 
 export interface StockTransferFilters { sourceWarehouseCode?: string; destinationWarehouseCode?: string; status?: StockTransferStatus; fromDate?: string; toDate?: string; }
 async function download(url: string, filename: string) {
@@ -14,6 +14,7 @@ export const stockTransfersApi = {
   create: (body: CreateStockTransferRequest) => api.post<StockTransfer>("/api/stock-transfers", body),
   accept: (id: number, body: AcceptStockTransferRequest) => api.post<StockTransfer>(`/api/stock-transfers/${id}/accept`, body),
   dispatch: (id: number, body: DispatchStockTransferRequest) => api.post<TransferDispatch>(`/api/stock-transfers/${id}/dispatch`, body),
+  directDispatch: (body: DirectDispatchRequest) => api.postWithMessage<TransferDispatch>("/api/stock-transfers/direct-dispatches", body),
   receive: (id: number, body: ReceiveTransferRequest) => api.post<TransferReceipt>(`/api/stock-transfers/dispatches/${id}/receive`, body),
   deliveryNote: (id: number, no: string) => download(`/api/stock-transfers/dispatches/${id}/delivery-note.pdf`, `${no}.pdf`),
   receipt: (id: number, no: string) => download(`/api/stock-transfers/receipts/${id}/receipt.pdf`, `${no}.pdf`),

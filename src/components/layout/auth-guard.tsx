@@ -42,7 +42,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isHydrated || user?.roleName !== "InventoryClerk") return;
-    const allowed = ["/inventory/main-warehouse", "/inventory/transfer-queue", "/inventory/dispatches", "/inventory/stock"];
+    const allowed = ["/inventory/main-warehouse", "/inventory/transfer-queue", "/inventory/dispatches", "/inventory/central-stock", "/inventory/central-stock-in", "/inventory/central-damage", "/inventory/direct-transfer"];
     if (!allowed.some((route) => pathname === route || pathname.startsWith(`${route}/`))) router.replace("/inventory/main-warehouse");
   }, [isHydrated, user?.roleName, pathname, router]);
 
