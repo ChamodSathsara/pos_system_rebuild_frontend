@@ -52,6 +52,7 @@ export function Sidebar({
       <ScrollArea className={cn("flex-1 py-4", collapsed ? "px-2" : "px-3")}>
         <nav className="space-y-5">
           {NAV_GROUPS.map((group) => {
+            if (role === "InventoryClerk" && group.label !== "Main Warehouse") return null;
             const items = group.items.filter((item) => isNavItemVisible(item, role));
             if (items.length === 0) return null;
             return (

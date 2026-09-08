@@ -112,9 +112,6 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export function isNavItemVisible(item: NavItem, role?: Role | string | null): boolean {
-  if (role === "InventoryClerk") {
-    return ["/inventory/main-warehouse", "/inventory/stock", "/inventory/transfer-queue", "/inventory/dispatches"].includes(item.href);
-  }
   if (!item.roles) return true;
   return item.roles.includes(role as Role);
 }
