@@ -61,7 +61,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Stock Levels", href: "/inventory/stock", icon: Boxes, roles: ["Admin", "Manager"] },
       { label: "Branch Stock", href: "/inventory/stock", icon: Boxes, roles: ["Branch_Manager"] },
-      { label: "Stock Requests", href: "/inventory/stock-requests", icon: ClipboardList, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Incoming Deliveries", href: "/inventory/incoming-deliveries", icon: Truck, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Opening Stock", href: "/inventory/opening-stock", icon: PackagePlus, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Damage Items", href: "/inventory/damage", icon: AlertTriangle },
@@ -76,7 +75,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Damage", href: "/inventory/central-damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
       { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Direct Transfer", href: "/inventory/direct-transfer", icon: Truck, roles: ["InventoryClerk"] },
     ],
   },
   {

@@ -16,6 +16,12 @@ export interface PurchaseOrder {
   vendorId?: number | null;
   vendorCode?: string | null;
   vendorName?: string | null;
+  sourceWarehouseCode?: string | null;
+  sourceWarehouseName?: string | null;
+  destinationWarehouseCode?: string | null;
+  destinationWarehouseName?: string | null;
+  isInternalTransfer?: boolean;
+  transferRequestId?: number | null;
   branchCode?: string | null;
   poDate?: string | null;
   expectedDate?: string | null;
@@ -36,7 +42,9 @@ export interface CreatePurchaseOrderItemLine {
 
 export interface CreatePurchaseOrderRequest {
   poNo?: string | null;
-  vendorId: number;
+  vendorId: number | null;
+  sourceWarehouseCode: string | null;
+  destinationWarehouseCode: string | null;
   branchCode: string;
   poDate?: string | null;
   expectedDate?: string | null;

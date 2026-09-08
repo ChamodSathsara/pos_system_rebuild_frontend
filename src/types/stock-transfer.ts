@@ -19,5 +19,4 @@ export interface AcceptStockTransferRequest { remarks?: string | null; lines: { 
 export interface DispatchStockTransferRequest { vehicleNo: string; driverName: string; remarks?: string | null; lines: { transferRequestLineId: number; batchId: number; quantity: number }[]; }
 export interface ReceiveTransferRequest { remarks?: string | null; lines: { dispatchLineId: number; receivedQty: number; damagedQty: number; shortQty: number; remarks?: string | null }[]; }
 export interface TransferReceipt { receiptId: number; receiptNo: string; dispatchId: number; receivedAt: string; }
-export interface DirectDispatchRequest { destinationWarehouseCode: string; remarks?: string | null; lines: { itemCode: string; quantity: number; remarks?: string | null }[]; }
 export interface BranchAcceptTransferRequest { remarks?: string | null; }

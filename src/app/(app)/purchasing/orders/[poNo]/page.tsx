@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApprovePO, useCancelPO, usePurchaseOrder, usePurchaseOrderHistory, useRejectPO } from "@/hooks/use-purchase";
@@ -34,7 +35,7 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
   if (isError || !po) return <ErrorState message="Could not load this purchase order." onRetry={refetch} />;
 
   const canCancel = po.status === "Open";
-  const canApproveReject = po.status === "Open" || po.status === "PartiallyReceived";
+  const canApproveReject = !po.isInternalTransfer && (po.status === "Open" || po.status === "PartiallyReceived");
 
   const runAction = () => {
     if (confirmAction === "approve") approveM.mutate({ poNo }, { onSuccess: () => setConfirmAction(null) });
@@ -50,16 +51,17 @@ export default function PurchaseOrderDetailPage({ params }: { params: Promise<{ 
         </Button>
         <PageHeader
           title={po.poNo}
-          description={`${po.vendorName || po.vendorCode} · ${po.branchCode}`}
+          description={po.isInternalTransfer ? `Central Warehouse: ${po.sourceWarehouseName || po.sourceWarehouseCode} · Destination: ${po.destinationWarehouseName || po.destinationWarehouseCode}` : `${po.vendorName || po.vendorCode} · ${po.branchCode}`}
           actions={
             <div className="flex items-center gap-2">
               <StatusBadge status={po.status} />
-              {canManage && po.status === "PartiallyReceived" && (
+              {po.isInternalTransfer && <Badge variant="outline">Internal Transfer PO</Badge>}
+              {canManage && !po.isInternalTransfer && po.status === "PartiallyReceived" && (
                 <Button size="sm" asChild>
                   <Link href={`/purchasing/grn?poNo=${po.poNo}`}><Truck className="h-4 w-4" /> Receive (GRN)</Link>
                 </Button>
               )}
-              {canManage && po.status === "Open" && (
+              {canManage && !po.isInternalTransfer && po.status === "Open" && (
                 <Button size="sm" asChild>
                   <Link href={`/purchasing/grn?poNo=${po.poNo}`}><Truck className="h-4 w-4" /> Receive (GRN)</Link>
                 </Button>
