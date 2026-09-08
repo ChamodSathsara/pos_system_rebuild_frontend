@@ -1,6 +1,6 @@
 import { salesApi } from "@/lib/api";
 import { buildInvoiceReceiptHtml } from "@/lib/invoice-receipt";
-import { printReceiptWithQz } from "@/lib/qz-print";
+import { printReceipt } from "@/lib/receipt-print";
 
 interface PaymentSummary {
   tendered: number;
@@ -14,5 +14,5 @@ export async function printSaleInvoice(invoiceNo: string, paymentSummary?: Payme
   const change = paymentSummary?.change ?? Math.max(0, tendered - Number(invoice.totalAmount || 0));
   const html = buildInvoiceReceiptHtml(invoice, tendered, change);
 
-  await printReceiptWithQz(html, invoiceNo);
+  await printReceipt(html, invoiceNo);
 }

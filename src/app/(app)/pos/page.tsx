@@ -604,7 +604,7 @@ function ReceiptDialog({ invoiceNo, tendered, change, onClose }: { invoiceNo: st
     } catch (error) {
       const friendly = getUserFacingError(error, {
         title: "The invoice could not be printed",
-        description: "Check that QZ Tray and the receipt printer are running, then try again.",
+        description: "Check that the receipt printer is connected and available in Windows, then try again.",
       });
       toast.error(friendly.title, { description: friendly.description });
     } finally {

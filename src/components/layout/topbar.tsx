@@ -81,7 +81,7 @@ export function Topbar({ title }: { title?: string }) {
             <DropdownMenuItem disabled>
               <UserIcon className="h-4 w-4" /> My Profile
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem onSelect={() => router.push("/settings/printer")}>
               <Settings className="h-4 w-4" /> Preferences
             </DropdownMenuItem>
             <DropdownMenuSeparator />

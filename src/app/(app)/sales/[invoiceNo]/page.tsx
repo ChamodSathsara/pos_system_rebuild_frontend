@@ -36,7 +36,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
     } catch (error) {
       const friendly = getUserFacingError(error, {
         title: "The invoice could not be printed",
-        description: `Make sure QZ Tray is running and the "GA-E200 Series" printer is connected, then try again.`,
+        description: "Check that the saved receipt printer is connected and available in Windows, then try again.",
       });
       toast.error(friendly.title, { description: friendly.description });
     } finally {
