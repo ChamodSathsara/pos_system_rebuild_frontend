@@ -61,14 +61,19 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Stock Levels", href: "/inventory/stock", icon: Boxes, roles: ["Admin", "Manager"] },
       { label: "Branch Stock", href: "/inventory/stock", icon: Boxes, roles: ["Branch_Manager"] },
-      { label: "Main Warehouse Dashboard", href: "/inventory/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Main Warehouse Batch Stock", href: "/inventory/stock", icon: Boxes, roles: ["InventoryClerk"] },
       { label: "Stock Requests", href: "/inventory/stock-requests", icon: ClipboardList, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Incoming Deliveries", href: "/inventory/incoming-deliveries", icon: Truck, roles: ["Admin", "Manager", "Branch_Manager"] },
-      { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Opening Stock", href: "/inventory/opening-stock", icon: PackagePlus, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Damage Items", href: "/inventory/damage", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "Main Warehouse",
+    items: [
+      { label: "Dashboard", href: "/inventory/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Batch Stock", href: "/inventory/stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
     ],
   },
   {
