@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateGrn, useGrns, usePurchaseOrders, usePurchaseOrder } from "@/hooks/use-purchase";
-import { useStockTransfers } from "@/hooks/use-stock-transfer";
+import { useStockTransfer } from "@/hooks/use-stock-transfer";
 import { useWarehouses } from "@/hooks/use-organization";
 import { useEffectiveBranchCode } from "@/store/auth-store";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -124,8 +124,8 @@ function CreateGrnDialog({
   const selectedPoNo = form.watch("poNo");
   const { data: selectedPO } = usePurchaseOrder(selectedPoNo || undefined);
   const isInternalPO = !!selectedPO?.isInternalTransfer && !!selectedPO.sourceWarehouseCode && selectedPO.vendorId == null;
-  const transferQuery = useStockTransfers({ sourceWarehouseCode: selectedPO?.sourceWarehouseCode ?? undefined }, isInternalPO && !!selectedPO?.transferRequestId);
-  const linkedTransfer = transferQuery.data?.find((transfer) => transfer.transferRequestId === selectedPO?.transferRequestId);
+  const transferQuery = useStockTransfer(isInternalPO ? selectedPO?.transferRequestId : undefined);
+  const linkedTransfer = transferQuery.data;
   const internalDispatchCompleted = !isInternalPO || linkedTransfer?.status === "Dispatched";
   const { data: warehouses } = useWarehouses(form.watch("branchCode") || undefined);
   const createM = useCreateGrn();
@@ -133,7 +133,8 @@ function CreateGrnDialog({
   useEffect(() => {
     if (selectedPO) {
       form.setValue("branchCode", selectedPO.branchCode ?? defaultBranch ?? "");
-      const dispatchedLines = linkedTransfer?.dispatches?.flatMap((dispatch) => dispatch.lines) ?? [];
+      const selectedDispatch = linkedTransfer?.dispatches?.at(-1);
+      const dispatchedLines = selectedDispatch?.lines ?? [];
       const remaining = isInternalPO && dispatchedLines.length > 0
         ? dispatchedLines.map((line) => {
           const poItem = selectedPO.items.find((item) => item.itemCode === line.itemCode);
@@ -143,9 +144,9 @@ function CreateGrnDialog({
             dispatchLineId: line.dispatchLineId,
             quantity: String(line.quantity),
             unitCost: String(line.unitCost ?? poItem?.unitCost ?? ""),
-            sellingPrice: String(poItem?.sellingPrice ?? ""),
-            batchNo: "",
-            expiryDate: "",
+            sellingPrice: String(line.sellingPrice ?? poItem?.sellingPrice ?? ""),
+            batchNo: line.batchNo ?? "",
+            expiryDate: line.expiryDate?.slice(0, 10) ?? "",
           };
         })
         : selectedPO.items
@@ -170,6 +171,7 @@ function CreateGrnDialog({
       toast.error("PO, branch, and warehouse are required.");
       return;
     }
+    if (isInternalPO && transferQuery.isError) { toast.error("Dispatch details could not be loaded. Please retry before posting the GRN."); return; }
     if (isInternalPO && !internalDispatchCompleted) { toast.error("Central Warehouse has not dispatched this PO yet."); return; }
     if (isInternalPO && v.items.some((item) => !item.dispatchLineId)) { toast.error("Dispatch line details are unavailable. Refresh the page and select the PO again."); return; }
     let hasSellingPriceError = false;
@@ -239,7 +241,7 @@ function CreateGrnDialog({
         <div className="col-span-2 space-y-1.5"><Label>Remarks</Label><Input {...form.register("remarks")} /></div>
       </div>
 
-      {isInternalPO && <div className={`rounded-lg border p-3 text-sm ${internalDispatchCompleted ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`}><p className="font-medium">Central Warehouse: {selectedPO.sourceWarehouseName || selectedPO.sourceWarehouseCode}</p><p className="mt-1 text-muted-foreground">{transferQuery.isLoading ? "Checking dispatch status..." : internalDispatchCompleted ? "Central dispatch completed. GRN can now be posted." : "Central Warehouse has not dispatched this PO yet."}</p></div>}
+      {isInternalPO && <div className={`rounded-lg border p-3 text-sm ${internalDispatchCompleted ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`}><p className="font-medium">Central Warehouse: {selectedPO.sourceWarehouseName || selectedPO.sourceWarehouseCode}</p><p className="mt-1 text-muted-foreground">{transferQuery.isLoading ? "Loading dispatch details..." : transferQuery.isError ? "Dispatch details could not be loaded. Please retry or contact the administrator." : internalDispatchCompleted ? "Central dispatch completed. GRN can now be posted." : "Central Warehouse has not dispatched this PO yet."}</p></div>}
 
       {fields.length > 0 && (
         <div className="space-y-2">

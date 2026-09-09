@@ -11,6 +11,7 @@ async function download(url: string, filename: string) {
 }
 export const stockTransfersApi = {
   list: (filters?: StockTransferFilters) => api.get<StockTransfer[]>("/api/stock-transfers", { params: cleanParams({ ...filters }) }),
+  get: (id: number) => api.get<StockTransfer>(`/api/stock-transfers/${id}`),
   create: (body: CreateStockTransferRequest) => api.post<StockTransfer>("/api/stock-transfers", body),
   accept: (id: number, body: AcceptStockTransferRequest) => api.post<StockTransfer>(`/api/stock-transfers/${id}/accept`, body),
   dispatch: (id: number, body: DispatchStockTransferRequest) => api.post<TransferDispatch>(`/api/stock-transfers/${id}/dispatch`, body),
