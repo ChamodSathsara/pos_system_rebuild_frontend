@@ -109,7 +109,14 @@ export function useGrn(grnId?: number) {
 export function useCreateGrn() {
   return useApiMutation((body: CreateGrnRequest) => grnMastersApi.create(body), {
     successMessage: "GRN posted — branch stock updated",
-    invalidateKeys: [["grn-masters"], ["purchase-orders"], ["stock-inventories"], ["stock-batches"], ["vendor-ledgers"]],
+    invalidateKeys: [
+      ["grn-masters"],
+      ["purchase-orders"],
+      ["stock-inventories"],
+      ["stock-batches"],
+      ["stock-transfers"],
+      ["vendor-ledgers"],
+    ],
   });
 }
 

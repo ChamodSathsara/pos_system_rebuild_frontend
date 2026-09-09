@@ -193,7 +193,7 @@ function CreateGrnDialog({
   });
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="New GRN" description="Select a purchase order to auto-fill outstanding lines." onSubmit={onSubmit} isSubmitting={createM.isPending} submitLabel="Post GRN" className="sm:max-w-2xl">
+    <FormDialog open={open} onOpenChange={onOpenChange} title="New GRN" description="Select a purchase order to auto-fill outstanding lines." onSubmit={onSubmit} isSubmitting={createM.isPending} submitLabel="Post GRN" className="sm:max-w-4xl">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Purchase Order *</Label>
@@ -228,16 +228,17 @@ function CreateGrnDialog({
           <Label>Items to Receive</Label>
           <div className="space-y-2">
             {fields.map((field, idx) => (
-              <div key={field.id} className="grid grid-cols-12 items-center gap-2 rounded-lg border border-border p-2">
-                <div className="col-span-2 text-xs">
+              <div key={field.id} className="grid grid-cols-1 items-start gap-2 rounded-lg border border-border p-3 sm:grid-cols-12">
+                <div className="text-xs sm:col-span-2">
+                  <p className="mb-1 text-[11px] text-muted-foreground">Item</p>
                   <p className="font-medium text-foreground truncate">{field.itemName || field.itemCode}</p>
                   <p className="text-muted-foreground">{field.itemCode}</p>
                 </div>
-                <Input placeholder="Qty" type="number" min="1" step="1" className="col-span-2" {...form.register(`items.${idx}.quantity` as const)} />
-                <Input placeholder="Unit cost" type="number" step="0.01" className="col-span-2" {...form.register(`items.${idx}.unitCost` as const)} />
-                <div className="col-span-2"><Input placeholder="Selling price *" type="number" min="0.01" step="0.01" aria-invalid={!!form.formState.errors.items?.[idx]?.sellingPrice} {...form.register(`items.${idx}.sellingPrice` as const)} />{form.formState.errors.items?.[idx]?.sellingPrice && <p className="mt-1 text-xs text-destructive">{form.formState.errors.items[idx]?.sellingPrice?.message}</p>}</div>
-                <Input placeholder="Batch no. (auto)" className="col-span-2" {...form.register(`items.${idx}.batchNo` as const)} />
-                <Input placeholder="Expiry" type="date" className="col-span-2" {...form.register(`items.${idx}.expiryDate` as const)} />
+                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Receive Qty *</Label><Input type="number" min="1" step="1" {...form.register(`items.${idx}.quantity` as const)} /></div>
+                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Unit Cost *</Label><Input type="number" step="0.01" {...form.register(`items.${idx}.unitCost` as const)} /></div>
+                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Selling Price *</Label><Input type="number" min="0.01" step="0.01" aria-invalid={!!form.formState.errors.items?.[idx]?.sellingPrice} {...form.register(`items.${idx}.sellingPrice` as const)} />{form.formState.errors.items?.[idx]?.sellingPrice && <p className="mt-1 text-xs text-destructive">{form.formState.errors.items[idx]?.sellingPrice?.message}</p>}</div>
+                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Batch No.</Label><Input placeholder="Auto-generated" {...form.register(`items.${idx}.batchNo` as const)} /></div>
+                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Expiry Date</Label><Input type="date" aria-label={`Expiry date for ${field.itemName || field.itemCode}`} {...form.register(`items.${idx}.expiryDate` as const)} /></div>
               </div>
             ))}
           </div>

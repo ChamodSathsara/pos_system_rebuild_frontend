@@ -55,8 +55,8 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
   const columns: ColumnDef<StockTransfer>[] = [
     { accessorKey: "requestNo", header: "Request", cell: ({ row }) => <Button type="button" variant="link" className="h-auto p-0 font-medium" onClick={() => setDetailFor(row.original)}>{row.original.requestNo}</Button> },
     { accessorKey: "requestDate", header: "Requested", cell: ({ row }) => formatDateTime(row.original.requestDate) },
-    { accessorKey: "sourceWarehouseCode", header: "From" },
-    { accessorKey: "destinationWarehouseCode", header: "To" },
+    { id: "sourceWarehouse", header: "From", cell: ({ row }) => row.original.sourceWarehouseName ? `${row.original.sourceWarehouseName} (${row.original.sourceWarehouseCode})` : row.original.sourceWarehouseCode },
+    { id: "destinationWarehouse", header: "To", cell: ({ row }) => row.original.destinationWarehouseName ? `${row.original.destinationWarehouseName} (${row.original.destinationWarehouseCode})` : row.original.destinationWarehouseCode },
     { id: "items", header: "Items", cell: ({ row }) => row.original.lines.length },
     { id: "totalQty", header: "Total Qty", cell: ({ row }) => <span className="num font-medium">{row.original.lines.reduce((sum, line) => sum + line.requestedQty, 0)}</span> },
     { accessorKey: "status", header: "Status", cell: ({ row }) => <Badge variant="outline" className={statusClass[row.original.status]}>{statusLabel[row.original.status] || row.original.status}</Badge> },
