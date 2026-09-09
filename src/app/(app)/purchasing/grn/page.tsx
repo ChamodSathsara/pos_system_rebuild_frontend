@@ -85,6 +85,7 @@ export default function GrnPage() {
 interface LineForm {
   itemCode: string;
   itemName?: string;
+  dispatchLineId?: number;
   quantity: string;
   unitCost: string;
   sellingPrice: string;
@@ -132,22 +133,37 @@ function CreateGrnDialog({
   useEffect(() => {
     if (selectedPO) {
       form.setValue("branchCode", selectedPO.branchCode ?? defaultBranch ?? "");
-      const remaining = selectedPO.items
-        .filter((i) => (i.quantity ?? 0) - (i.receivedQuantity ?? 0) > 0)
-        .map((i) => ({
-          itemCode: i.itemCode ?? "",
-          itemName: i.itemName ?? "",
-          quantity: String((i.quantity ?? 0) - (i.receivedQuantity ?? 0)),
-          unitCost: String(i.unitCost ?? ""),
-          sellingPrice: String(i.sellingPrice ?? ""),
-          batchNo: "",
-          expiryDate: "",
-        }));
+      const dispatchedLines = linkedTransfer?.dispatches?.flatMap((dispatch) => dispatch.lines) ?? [];
+      const remaining = isInternalPO && dispatchedLines.length > 0
+        ? dispatchedLines.map((line) => {
+          const poItem = selectedPO.items.find((item) => item.itemCode === line.itemCode);
+          return {
+            itemCode: line.itemCode ?? poItem?.itemCode ?? "",
+            itemName: line.itemName ?? poItem?.itemName ?? "",
+            dispatchLineId: line.dispatchLineId,
+            quantity: String(line.quantity),
+            unitCost: String(line.unitCost ?? poItem?.unitCost ?? ""),
+            sellingPrice: String(poItem?.sellingPrice ?? ""),
+            batchNo: "",
+            expiryDate: "",
+          };
+        })
+        : selectedPO.items
+          .filter((i) => (i.quantity ?? 0) - (i.receivedQuantity ?? 0) > 0)
+          .map((i) => ({
+            itemCode: i.itemCode ?? "",
+            itemName: i.itemName ?? "",
+            quantity: String((i.quantity ?? 0) - (i.receivedQuantity ?? 0)),
+            unitCost: String(i.unitCost ?? ""),
+            sellingPrice: String(i.sellingPrice ?? ""),
+            batchNo: "",
+            expiryDate: "",
+          }));
       replace(remaining);
       if (isInternalPO && selectedPO.destinationWarehouseCode) form.setValue("warehouseCode", selectedPO.destinationWarehouseCode);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPO, isInternalPO]);
+  }, [selectedPO, isInternalPO, linkedTransfer]);
 
   const onSubmit = form.handleSubmit((v) => {
     if (!v.poNo || !v.branchCode || !v.warehouseCode) {
@@ -155,11 +171,13 @@ function CreateGrnDialog({
       return;
     }
     if (isInternalPO && !internalDispatchCompleted) { toast.error("Central Warehouse has not dispatched this PO yet."); return; }
+    if (isInternalPO && v.items.some((item) => !item.dispatchLineId)) { toast.error("Dispatch line details are unavailable. Refresh the page and select the PO again."); return; }
     let hasSellingPriceError = false;
     v.items.forEach((item, index) => { if (!item.sellingPrice || !Number.isFinite(Number(item.sellingPrice)) || Number(item.sellingPrice) <= 0) { form.setError(`items.${index}.sellingPrice`, { message: "Selling price is required and must be greater than zero." }); hasSellingPriceError = true; } });
     if (hasSellingPriceError) { toast.error("Enter a valid selling price for every GRN item."); return; }
     const items = v.items.filter((i) => i.itemCode && i.quantity && i.unitCost).map((i) => ({
       itemCode: i.itemCode,
+      ...(isInternalPO ? { dispatchLineId: i.dispatchLineId } : {}),
       quantity: Number(i.quantity),
       unitCost: Number(i.unitCost),
       sellingPrice: Number(i.sellingPrice),
@@ -233,6 +251,7 @@ function CreateGrnDialog({
                   <p className="mb-1 text-[11px] text-muted-foreground">Item</p>
                   <p className="font-medium text-foreground truncate">{field.itemName || field.itemCode}</p>
                   <p className="text-muted-foreground">{field.itemCode}</p>
+                  {field.dispatchLineId && <p className="text-muted-foreground">Dispatch line #{field.dispatchLineId}</p>}
                 </div>
                 <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Receive Qty *</Label><Input type="number" min="1" step="1" {...form.register(`items.${idx}.quantity` as const)} /></div>
                 <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Unit Cost *</Label><Input type="number" step="0.01" {...form.register(`items.${idx}.unitCost` as const)} /></div>

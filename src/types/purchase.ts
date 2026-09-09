@@ -133,6 +133,7 @@ export interface Grn {
 
 export interface CreateGrnItemLine {
   itemCode: string;
+  dispatchLineId?: number | null;
   quantity: number;
   unitCost: number;
   sellingPrice: number;
