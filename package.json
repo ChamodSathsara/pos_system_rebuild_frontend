@@ -71,7 +71,7 @@
   "build": {
     "appId": "com.gestetner.pos",
     "productName": "Gestetner POS",
-    "artifactName": "Gestetner-POS-Final-Update-cha-${version}.${ext}",
+    "artifactName": "Gestetner-POS-Final-Update-chamod-${version}.${ext}",
     "asar": true,
     "npmRebuild": false,
     "directories": {
