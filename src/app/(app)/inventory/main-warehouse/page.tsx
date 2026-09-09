@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { AlertTriangle, Boxes, ClipboardList, PackagePlus, Truck } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Boxes, ClipboardList, PackagePlus, Truck } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useWarehouse } from "@/hooks/use-organization";
@@ -25,7 +25,7 @@ export default function CentralWarehouseDashboard() {
     {failed && <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Central Warehouse information could not be loaded. Check the API connection and try again.</div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value]) => <div key={label} className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{loading ? "..." : value}</p></div>)}</div>
     <div className="grid gap-4 xl:grid-cols-2"><div className="rounded-xl border bg-card p-4"><div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Recent Damage</h2><Button asChild size="sm" variant="ghost"><Link href="/inventory/central-damage">View all</Link></Button></div>{recentDamage.length ? <div className="space-y-2">{recentDamage.map((item) => <div key={item.damageId} className="flex justify-between rounded-lg border p-3 text-sm"><div><p className="font-medium">{item.itemName || item.itemCode}</p><p className="text-muted-foreground">{item.reason || "No reason"} · {formatDate(item.damageDate)}</p></div><div className="text-right"><p>{item.quantity ?? 0}</p><p className="text-xs text-muted-foreground">{formatMoney(item.costAmount)}</p></div></div>)}</div> : <p className="text-sm text-muted-foreground">No Central Warehouse damage recorded.</p>}</div>
-    <div className="rounded-xl border bg-card p-4"><h2 className="mb-3 font-semibold">Central Operations</h2><div className="grid gap-2 sm:grid-cols-2"><OperationLink href="/inventory/central-stock" icon={Boxes} label="Batch Stock" /><OperationLink href="/inventory/transfer-queue" icon={ClipboardList} label="Request Queue" /><OperationLink href="/inventory/dispatches" icon={Truck} label="Dispatches" /></div></div></div>
+    <div className="rounded-xl border bg-card p-4"><h2 className="mb-3 font-semibold">Central Operations</h2><div className="grid gap-2 sm:grid-cols-2"><OperationLink href="/inventory/central-stock" icon={Boxes} label="Batch Stock" /><OperationLink href="/inventory/stock-transfer" icon={ArrowRightLeft} label="Stock Transfer" /><OperationLink href="/inventory/transfer-queue" icon={ClipboardList} label="Request Queue" /><OperationLink href="/inventory/dispatches" icon={Truck} label="Dispatches" /></div></div></div>
   </div>;
 }
 function OperationLink({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) { return <Button asChild variant="outline" className="h-14 justify-start"><Link href={href}><Icon /> {label}</Link></Button>; }

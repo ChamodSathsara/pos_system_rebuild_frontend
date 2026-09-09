@@ -85,7 +85,15 @@ const statusLabel: Record<string, string> = {
   Received: "Completed",
 };
 
-export function TransferWorkspace({ mode }: { mode: Mode }) {
+export function TransferWorkspace({
+  mode,
+  initialDirectOpen = false,
+  titleOverride,
+}: {
+  mode: Mode;
+  initialDirectOpen?: boolean;
+  titleOverride?: string;
+}) {
   const user = useAuthStore((s) => s.user);
   const isInventoryClerk = user?.roleName === "InventoryClerk";
   const { data: allWarehouses } = useWarehouses(
@@ -176,7 +184,7 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
     [rows],
   );
   const [createOpen, setCreateOpen] = useState(false);
-  const [directOpen, setDirectOpen] = useState(false);
+  const [directOpen, setDirectOpen] = useState(initialDirectOpen);
   const [acceptFor, setAcceptFor] = useState<StockTransfer | null>(null);
   const [branchAcceptFor, setBranchAcceptFor] = useState<StockTransfer | null>(
     null,
@@ -310,7 +318,7 @@ export function TransferWorkspace({ mode }: { mode: Mode }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={title}
+        title={titleOverride || title}
         description="Internal Main Warehouse to branch warehouse stock movements."
         actions={
           <div className="flex gap-2">

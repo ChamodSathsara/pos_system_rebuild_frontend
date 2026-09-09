@@ -19,6 +19,7 @@ import {
   PackagePlus,
   Landmark,
   ShieldCheck,
+  ArrowRightLeft,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/types";
@@ -73,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Batch Stock", href: "/inventory/central-stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Stock In", href: "/inventory/central-stock-in", icon: PackagePlus, roles: ["InventoryClerk"] },
       { label: "Damage", href: "/inventory/central-damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
+      { label: "Stock Transfer", href: "/inventory/stock-transfer", icon: ArrowRightLeft, roles: ["InventoryClerk"] },
       { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
     ],
