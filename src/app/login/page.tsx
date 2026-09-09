@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, LayoutGrid, Loader2, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,9 +49,7 @@ export default function LoginPage() {
       {/* Left brand panel */}
       <div className="relative hidden w-1/2 flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <LayoutGrid className="h-5 w-5" />
-          </div>
+          <Image src="/vpos-icon.png" alt="Vantage POS" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" priority />
           <span className="text-lg font-bold text-white">Vantage POS</span>
         </div>
 
@@ -77,9 +76,7 @@ export default function LoginPage() {
       <div className="flex w-full flex-1 items-center justify-center bg-background p-6 lg:w-1/2">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center gap-2 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <LayoutGrid className="h-5 w-5" />
-            </div>
+            <Image src="/vpos-icon.png" alt="Vantage POS" width={40} height={40} className="h-10 w-10 rounded-lg object-contain" priority />
             <span className="text-lg font-bold">Vantage POS</span>
           </div>
 

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isNavItemVisible } from "@/config/nav";
 import { useAuthStore } from "@/store/auth-store";
@@ -43,9 +44,7 @@ export function Sidebar({
       )}
 
       <div className={cn("flex h-14 items-center gap-2.5 border-b border-sidebar-border", collapsed ? "justify-center px-3" : "px-5")}>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-          <LayoutGrid className="h-4.5 w-4.5" />
-        </div>
+        <Image src="/vpos-icon.png" alt="Vantage POS" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" priority />
         {!collapsed && <span className="whitespace-nowrap text-[15px] font-bold text-white">Vantage POS</span>}
       </div>
 

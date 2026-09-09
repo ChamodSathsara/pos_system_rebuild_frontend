@@ -13,6 +13,11 @@ import { AppProviders } from "@/components/providers";
 export const metadata: Metadata = {
   title: "Vantage POS",
   description: "Point of Sale & Retail Management System",
+  icons: {
+    icon: "/vpos-icon.png",
+    shortcut: "/vpos-icon.png",
+    apple: "/vpos-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
