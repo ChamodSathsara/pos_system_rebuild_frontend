@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { stockTransfersApi, type StockTransferFilters } from "@/lib/api";
 import { useApiMutation } from "./use-api-mutation";
-import type { AcceptStockTransferRequest, BranchAcceptTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest } from "@/types";
+import type { AcceptStockTransferRequest, BranchAcceptTransferRequest, BranchRejectTransferRequest, CreateDirectStockTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest } from "@/types";
 export const tq = { all: ["stock-transfers"] as const, list: (f?: StockTransferFilters) => ["stock-transfers", f ?? {}] as const, detail: (id: number) => ["stock-transfers", "detail", id] as const };
 export const useStockTransfers = (filters?: StockTransferFilters, enabled = true) => useQuery({ queryKey: tq.list(filters), queryFn: () => stockTransfersApi.list(filters), enabled });
 export const useStockTransfer = (id?: number | null) => useQuery({ queryKey: tq.detail(id ?? 0), queryFn: () => stockTransfersApi.get(id as number), enabled: typeof id === "number" && id > 0 });
 export const useCreateStockTransfer = () => useApiMutation((body: CreateStockTransferRequest) => stockTransfersApi.create(body), { successMessage: "Stock request submitted successfully.", invalidateKeys: [tq.all] });
+export const useCreateDirectStockTransfer = () => useApiMutation((body: CreateDirectStockTransferRequest) => stockTransfersApi.createDirect(body), { successMessage: "Transfer proposal sent to the destination branch for acceptance.", invalidateKeys: [tq.all] });
 export const useAcceptStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: AcceptStockTransferRequest }) => stockTransfersApi.accept(id, body), { successMessage: "Stock request accepted.", invalidateKeys: [tq.all] });
 export const useDispatchStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: DispatchStockTransferRequest }) => stockTransfersApi.dispatch(id, body), { successMessage: "Stock dispatched successfully.", invalidateKeys: [tq.all, ["stock-inventories"], ["stock-batches"]] });
 export const useReceiveStockTransfer = () => useApiMutation(({ id, body }: { id: number; body: ReceiveTransferRequest }) => stockTransfersApi.receive(id, body), { successMessage: "Delivery received successfully.", invalidateKeys: [tq.all, ["stock-inventories"], ["stock-batches"]] });
-export const useBranchAcceptTransfer = () => useApiMutation(({ id, body }: { id: number; body: BranchAcceptTransferRequest }) => stockTransfersApi.branchAccept(id, body), { successMessage: "Transfer accepted. It is now waiting for Central dispatch.", invalidateKeys: [tq.all] });
+export const useBranchAcceptTransfer = () => useApiMutation(({ id, body }: { id: number; body: BranchAcceptTransferRequest }) => stockTransfersApi.branchAccept(id, body), { successMessage: "Transfer accepted. It is now waiting for Central dispatch.", invalidateKeys: [tq.all, ["purchase-orders"]] });
+export const useBranchRejectTransfer = () => useApiMutation(({ id, body }: { id: number; body: BranchRejectTransferRequest }) => stockTransfersApi.branchReject(id, body), { successMessage: "Transfer proposal rejected.", invalidateKeys: [tq.all] });

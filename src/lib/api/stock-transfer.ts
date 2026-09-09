@@ -1,5 +1,5 @@
 import { api, cleanParams, httpClient } from "./client";
-import type { AcceptStockTransferRequest, BranchAcceptTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest, StockTransfer, StockTransferStatus, TransferDispatch, TransferReceipt } from "@/types";
+import type { AcceptStockTransferRequest, BranchAcceptTransferRequest, BranchRejectTransferRequest, CreateDirectStockTransferRequest, CreateStockTransferRequest, DispatchStockTransferRequest, ReceiveTransferRequest, StockTransfer, StockTransferStatus, TransferDispatch, TransferReceipt } from "@/types";
 
 export interface StockTransferFilters { sourceWarehouseCode?: string; destinationWarehouseCode?: string; status?: StockTransferStatus; fromDate?: string; toDate?: string; }
 async function download(url: string, filename: string) {
@@ -13,9 +13,11 @@ export const stockTransfersApi = {
   list: (filters?: StockTransferFilters) => api.get<StockTransfer[]>("/api/stock-transfers", { params: cleanParams({ ...filters }) }),
   get: (id: number) => api.get<StockTransfer>(`/api/stock-transfers/${id}`),
   create: (body: CreateStockTransferRequest) => api.post<StockTransfer>("/api/stock-transfers", body),
+  createDirect: (body: CreateDirectStockTransferRequest) => api.post<StockTransfer>("/api/stock-transfers/direct", body),
   accept: (id: number, body: AcceptStockTransferRequest) => api.post<StockTransfer>(`/api/stock-transfers/${id}/accept`, body),
   dispatch: (id: number, body: DispatchStockTransferRequest) => api.post<TransferDispatch>(`/api/stock-transfers/${id}/dispatch`, body),
   branchAccept: (id: number, body: BranchAcceptTransferRequest) => api.post<StockTransfer>(`/api/stock-transfers/${id}/branch-accept`, body),
+  branchReject: (id: number, body: BranchRejectTransferRequest) => api.post<StockTransfer>(`/api/stock-transfers/${id}/branch-reject`, body),
   receive: (id: number, body: ReceiveTransferRequest) => api.post<TransferReceipt>(`/api/stock-transfers/dispatches/${id}/receive`, body),
   deliveryNote: (id: number, no: string) => download(`/api/stock-transfers/dispatches/${id}/delivery-note.pdf`, `${no}.pdf`),
   receipt: (id: number, no: string) => download(`/api/stock-transfers/receipts/${id}/receipt.pdf`, `${no}.pdf`),

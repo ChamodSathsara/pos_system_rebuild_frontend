@@ -13,10 +13,12 @@ export interface StockTransferLine {
 }
 export interface TransferDispatchLine { dispatchLineId: number; transferRequestLineId: number; itemCode?: string; itemName?: string; batchId: number; batchNo?: string | null; quantity: number; unitCost: number; sellingPrice?: number | null; expiryDate?: string | null; }
 export interface TransferDispatch { dispatchId: number; dispatchNo: string; transferRequestId: number; dispatchedAt: string; vehicleNo?: string; driverName?: string; status?: string; lines: TransferDispatchLine[]; }
-export interface StockTransfer { transferRequestId: number; requestNo: string; sourceWarehouseCode: string; sourceWarehouseName?: string; destinationWarehouseCode: string; destinationWarehouseName?: string; status: StockTransferStatus; requestDate: string; requiredDate?: string | null; remarks?: string | null; lines: StockTransferLine[]; dispatches?: TransferDispatch[]; }
+export interface StockTransfer { transferRequestId: number; requestNo: string; linkedPoNo?: string | null; sourceWarehouseCode: string; sourceWarehouseName?: string; destinationWarehouseCode: string; destinationWarehouseName?: string; status: StockTransferStatus; requestDate: string; requiredDate?: string | null; remarks?: string | null; lines: StockTransferLine[]; dispatches?: TransferDispatch[]; }
 export interface CreateStockTransferRequest { sourceWarehouseCode: string; destinationWarehouseCode: string; requiredDate: string; remarks?: string | null; lines: { itemCode: string; quantity: number; remarks?: string | null }[]; }
+export interface CreateDirectStockTransferRequest { destinationWarehouseCode: string; remarks?: string | null; lines: { itemCode: string; quantity: number; remarks?: string | null }[]; }
 export interface AcceptStockTransferRequest { remarks?: string | null; lines: { transferRequestLineId: number; approvedQty: number }[]; }
 export interface DispatchStockTransferRequest { vehicleNo: string; driverName: string; remarks?: string | null; lines: { transferRequestLineId: number; batchId: number; quantity: number }[]; }
 export interface ReceiveTransferRequest { remarks?: string | null; lines: { dispatchLineId: number; receivedQty: number; damagedQty: number; shortQty: number; remarks?: string | null }[]; }
 export interface TransferReceipt { receiptId: number; receiptNo: string; dispatchId: number; receivedAt: string; }
 export interface BranchAcceptTransferRequest { remarks?: string | null; }
+export interface BranchRejectTransferRequest { remarks: string; }

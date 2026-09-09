@@ -135,6 +135,10 @@ function CreateGrnDialog({
       form.setValue("branchCode", selectedPO.branchCode ?? defaultBranch ?? "");
       const selectedDispatch = linkedTransfer?.dispatches?.at(-1);
       const dispatchedLines = selectedDispatch?.lines ?? [];
+      if (isInternalPO && selectedDispatch) {
+        form.setValue("invoiceNo", selectedDispatch.dispatchNo);
+        form.setValue("invoiceDate", selectedDispatch.dispatchedAt?.slice(0, 10) ?? "");
+      }
       const remaining = isInternalPO && dispatchedLines.length > 0
         ? dispatchedLines.map((line) => {
           const poItem = selectedPO.items.find((item) => item.itemCode === line.itemCode);
@@ -145,7 +149,7 @@ function CreateGrnDialog({
             quantity: String(line.quantity),
             unitCost: String(line.unitCost ?? poItem?.unitCost ?? ""),
             sellingPrice: String(line.sellingPrice ?? poItem?.sellingPrice ?? ""),
-            batchNo: line.batchNo ?? "",
+            batchNo: "",
             expiryDate: line.expiryDate?.slice(0, 10) ?? "",
           };
         })
