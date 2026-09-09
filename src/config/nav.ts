@@ -70,13 +70,13 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Main Warehouse",
     items: [
-      { label: "Dashboard", href: "/inventory/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Batch Stock", href: "/inventory/central-stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Stock In", href: "/inventory/central-stock-in", icon: PackagePlus, roles: ["InventoryClerk"] },
-      { label: "Damage", href: "/inventory/central-damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
-      { label: "Stock Transfer", href: "/inventory/stock-transfer", icon: ArrowRightLeft, roles: ["InventoryClerk"] },
-      { label: "Request Queue", href: "/inventory/transfer-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Dispatches", href: "/inventory/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Dashboard", href: "/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Batch Stock", href: "/main-warehouse/batch-stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Stock In", href: "/main-warehouse/stock-in", icon: PackagePlus, roles: ["InventoryClerk"] },
+      { label: "Damage", href: "/main-warehouse/damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
+      { label: "Stock Transfer", href: "/main-warehouse/stock-transfer", icon: ArrowRightLeft, roles: ["InventoryClerk"] },
+      { label: "Request Queue", href: "/main-warehouse/request-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Dispatches", href: "/main-warehouse/dispatches", icon: Truck, roles: ["Admin", "Manager", "InventoryClerk"] },
     ],
   },
   {

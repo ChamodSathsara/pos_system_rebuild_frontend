@@ -33,7 +33,7 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       const user = await login(values.username, values.password);
-      router.replace(user.roleName === "InventoryClerk" ? "/inventory/main-warehouse" : "/dashboard");
+      router.replace(user.roleName === "InventoryClerk" ? "/main-warehouse" : "/dashboard");
     } catch (err) {
       const friendly = getUserFacingError(err, {
         title: "Sign-in failed",
