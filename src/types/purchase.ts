@@ -8,6 +8,7 @@ export interface PurchaseOrderItem {
   quantity?: number | null;
   receivedQuantity?: number | null;
   unitCost?: number | null;
+  sellingPrice?: number | null;
   totalCost?: number | null;
 }
 
@@ -102,6 +103,7 @@ export interface GrnItem {
   itemName?: string | null;
   quantity?: number | null;
   unitCost?: number | null;
+  sellingPrice?: number | null;
   totalCost?: number | null;
   batchNo?: string | null;
   expiryDate?: string | null;
@@ -114,6 +116,9 @@ export interface Grn {
   vendorId?: number | null;
   vendorCode?: string | null;
   vendorName?: string | null;
+  sourceWarehouseCode?: string | null;
+  sourceWarehouseName?: string | null;
+  isInternalTransfer?: boolean;
   branchCode?: string | null;
   warehouseCode?: string | null;
   grnDate?: string | null;
@@ -130,6 +135,7 @@ export interface CreateGrnItemLine {
   itemCode: string;
   quantity: number;
   unitCost: number;
+  sellingPrice: number;
   batchNo?: string | null;
   expiryDate?: string | null;
 }
