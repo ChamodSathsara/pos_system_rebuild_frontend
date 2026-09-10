@@ -132,6 +132,12 @@ function BranchesTab() {
   };
 
   const onSubmit = form.handleSubmit((v) => {
+    if (!editing && !v.companyCode) {
+      form.setError("companyCode", { message: "Please select the company for this branch." });
+      toast.error("Please select a company before creating the branch.");
+      return;
+    }
+
     const body = { branchName: v.branchName, address: v.address || null, phone: v.phone || null, status: v.status, companyCode: v.companyCode || null };
     if (editing) updateM.mutate({ code: editing.branchCode, body }, { onSuccess: () => setOpen(false) });
     else createM.mutate(body, { onSuccess: () => setOpen(false) });
@@ -162,13 +168,14 @@ function BranchesTab() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5"><Label>Branch Name *</Label><Input {...form.register("branchName")} /></div>
           <div className="space-y-1.5">
-            <Label>Company</Label>
-            <Select value={form.watch("companyCode")} onValueChange={(v) => form.setValue("companyCode", v)}>
-              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+            <Label>Company {!editing && "*"}</Label>
+            <Select value={form.watch("companyCode")} onValueChange={(v) => form.setValue("companyCode", v, { shouldValidate: true })}>
+              <SelectTrigger aria-invalid={!!form.formState.errors.companyCode}><SelectValue placeholder="Select company" /></SelectTrigger>
               <SelectContent>
                 {companies?.map((c) => <SelectItem key={c.companyCode} value={c.companyCode}>{c.companyName}</SelectItem>)}
               </SelectContent>
             </Select>
+            {form.formState.errors.companyCode && <p className="text-xs text-destructive">{form.formState.errors.companyCode.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Status</Label>
