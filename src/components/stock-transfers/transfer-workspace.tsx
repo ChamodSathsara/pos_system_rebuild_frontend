@@ -87,11 +87,9 @@ const statusLabel: Record<string, string> = {
 
 export function TransferWorkspace({
   mode,
-  initialDirectOpen = false,
   titleOverride,
 }: {
   mode: Mode;
-  initialDirectOpen?: boolean;
   titleOverride?: string;
 }) {
   const user = useAuthStore((s) => s.user);
@@ -184,7 +182,7 @@ export function TransferWorkspace({
     [rows],
   );
   const [createOpen, setCreateOpen] = useState(false);
-  const [directOpen, setDirectOpen] = useState(initialDirectOpen);
+  const [directOpen, setDirectOpen] = useState(false);
   const [acceptFor, setAcceptFor] = useState<StockTransfer | null>(null);
   const [branchAcceptFor, setBranchAcceptFor] = useState<StockTransfer | null>(
     null,
