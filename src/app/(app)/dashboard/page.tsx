@@ -29,6 +29,12 @@ import { useStockInventories } from "@/hooks/use-stock";
 import { useCashierShifts } from "@/hooks/use-misc";
 import { formatMoney, formatNumber, toDateOnly } from "@/lib/format";
 
+function formatDashboardMoney(value: number | null | undefined) {
+  return `Rs ${new Intl.NumberFormat("en-LK", {
+    maximumFractionDigits: 0,
+  }).format(value ?? 0)}`;
+}
+
 function last7DaysRange() {
   const to = new Date();
   const from = new Date();
@@ -69,7 +75,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Net Sales Today"
-              value={formatMoney(today?.netSales ?? 0)}
+              value={formatDashboardMoney(today?.netSales)}
               icon={Receipt}
               tone="primary"
               isMoney
@@ -77,7 +83,7 @@ export default function DashboardPage() {
             />
             <StatCard
               label="Gross Sales (7 days)"
-              value={formatMoney(dailyReport.data?.total?.grossSales ?? 0)}
+              value={formatDashboardMoney(dailyReport.data?.total?.grossSales)}
               icon={ShoppingCart}
               tone="info"
               isMoney
@@ -116,7 +122,7 @@ export default function DashboardPage() {
                   <EmptyState title="No sales yet" description="Once sales come in, your trend will show here." />
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
-                    <AreaChart data={chartData} margin={{ left: -20, right: 10, top: 10 }}>
+                    <AreaChart data={chartData} margin={{ left: 0, right: 10, top: 10 }}>
                       <defs>
                         <linearGradient id="netSalesFill" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
@@ -125,9 +131,9 @@ export default function DashboardPage() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                       <XAxis dataKey="date" tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} width={70} tickFormatter={(v) => formatMoney(v)} />
+                      <YAxis tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }} axisLine={false} tickLine={false} width={100} tickFormatter={(v) => formatDashboardMoney(Number(v))} />
                       <RTooltip
-                        formatter={((v: unknown) => formatMoney(Number(v ?? 0))) as never}
+                        formatter={((v: unknown) => formatDashboardMoney(Number(v ?? 0))) as never}
                         contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 12 }}
                       />
                       <Area type="monotone" dataKey="net" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#netSalesFill)" />

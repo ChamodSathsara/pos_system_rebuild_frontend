@@ -157,6 +157,18 @@
   }
 }
 
+/*
+ * The application shell owns the page scroll area. `min-height: 0` on the
+ * flex children is required for Chromium/Electron to calculate that area
+ * correctly; without it long dashboard pages can render past the viewport
+ * while the scrollbar cannot scroll through their content.
+ */
+.app-main-scroll {
+  min-height: 0;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
 @layer utilities {
   .num {
     font-family: var(--font-mono);
