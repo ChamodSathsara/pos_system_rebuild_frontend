@@ -1,5 +1,8 @@
 import { api } from "./client";
 import type {
+  AuditLog,
+  AuditLogFilters,
+  AuditLogPage,
   CreatePermissionRequest,
   CreateSystemUserRequest,
   CreateUserRoleRequest,
@@ -10,6 +13,11 @@ import type {
   UserRolePermission,
   UserRoleWithPermissions,
 } from "@/types";
+
+export const auditLogsApi = {
+  list: (filters: AuditLogFilters) => api.get<AuditLogPage>("/api/audit-logs", { params: filters }),
+  get: (logId: number) => api.get<AuditLog>(`/api/audit-logs/${logId}`),
+};
 
 export const systemUsersApi = {
   list: () => api.get<SystemUser[]>("/api/system-users"),

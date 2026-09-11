@@ -70,3 +70,49 @@ export interface UserRolePermission {
   permissionId: number;
   permissionName?: string | null;
 }
+
+export interface AuditLog {
+  logId: number;
+  transactionId?: string | null;
+  userCode?: string | null;
+  username?: string | null;
+  fullName?: string | null;
+  action?: string | null;
+  tableName?: string | null;
+  recordId?: string | null;
+  entityType?: string | null;
+  branchCode?: string | null;
+  warehouseCode?: string | null;
+  actionStatus?: string | null;
+  reason?: string | null;
+  ipAddress?: string | null;
+  correlationId?: string | null;
+  metadata?: string | null;
+  oldValue?: string | null;
+  newValue?: string | null;
+  actionTime?: string | null;
+}
+
+export interface AuditLogFilters {
+  pageNumber?: number;
+  pageSize?: number;
+  userCode?: string;
+  action?: string;
+  tableName?: string;
+  recordId?: string;
+  branchCode?: string;
+  warehouseCode?: string;
+  transactionId?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface AuditLogPage {
+  items: AuditLog[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}

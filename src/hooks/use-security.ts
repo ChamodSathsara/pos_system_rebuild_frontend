@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { permissionsApi, systemUsersApi, userRolePermissionsApi, userRolesApi } from "@/lib/api";
+import { auditLogsApi, permissionsApi, systemUsersApi, userRolePermissionsApi, userRolesApi } from "@/lib/api";
 import { useApiMutation } from "./use-api-mutation";
-import type { CreatePermissionRequest, CreateSystemUserRequest, CreateUserRoleRequest, UpdateSystemUserRequest } from "@/types";
+import type { AuditLogFilters, CreatePermissionRequest, CreateSystemUserRequest, CreateUserRoleRequest, UpdateSystemUserRequest } from "@/types";
 
 export const skq = {
   users: ["system-users"] as const,
@@ -9,7 +9,16 @@ export const skq = {
   roleDetails: (id: number) => ["user-roles", id, "details"] as const,
   permissions: ["permissions"] as const,
   allRolePermissions: ["user-role-permissions"] as const,
+  auditLogs: (filters: AuditLogFilters) => ["audit-logs", filters] as const,
+  auditLog: (logId: number) => ["audit-logs", logId] as const,
 };
+
+export function useAuditLogs(filters: AuditLogFilters) {
+  return useQuery({ queryKey: skq.auditLogs(filters), queryFn: () => auditLogsApi.list(filters) });
+}
+export function useAuditLog(logId?: number) {
+  return useQuery({ queryKey: skq.auditLog(logId ?? 0), queryFn: () => auditLogsApi.get(logId as number), enabled: !!logId });
+}
 
 export function useSystemUsers() {
   return useQuery({ queryKey: skq.users, queryFn: () => systemUsersApi.list() });
