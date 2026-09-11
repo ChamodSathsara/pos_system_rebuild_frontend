@@ -21,11 +21,15 @@ import type { SystemUser } from "@/types";
 import { validateSriLankanMobile } from "@/lib/phone-validation";
 import { validateEmail } from "@/lib/email-validation";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth-store";
 
 const NO_BRANCH = "__no_branch__";
 
 export default function UsersPage() {
-  const { data, isLoading, isError, refetch } = useSystemUsers();
+  const currentUser = useAuthStore((state) => state.user);
+  const isBranchManager = currentUser?.roleName === "Branch_Manager";
+  const managedBranchCode = currentUser?.branchCode ?? "";
+  const { data: rawUsers, isLoading, isError, refetch } = useSystemUsers();
   const { data: roles } = useUserRoles();
   const { data: branches } = useBranches();
   const { data: warehouses } = useWarehouses();
@@ -45,10 +49,22 @@ export default function UsersPage() {
   const isInventoryClerk = selectedRole?.roleName === "InventoryClerk";
   const branchRequired = !!selectedRole && !["Admin", "Manager", "InventoryClerk"].includes(selectedRole.roleName);
   const centralWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.isCentralWarehouse && warehouse.isActive);
+  const permittedRoles = isBranchManager
+    ? (roles ?? []).filter((role) => ["Cashier", "Branch_Manager"].includes(role.roleName))
+    : (roles ?? []);
+  const visibleUsers = isBranchManager
+    ? (rawUsers ?? []).filter((user) => user.branchCode === managedBranchCode)
+    : (rawUsers ?? []);
+  const data = visibleUsers;
+  const managedBranchName = branches?.find((branch) => branch.branchCode === managedBranchCode)?.branchName ?? managedBranchCode;
 
   const openCreate = () => {
     setEditing(null);
-    form.reset({ username: "", password: "", fullName: "", email: "", mobile: "", branchCode: "", warehouseCode: "", roleId: "", isActive: true });
+    if (isBranchManager && !managedBranchCode) {
+      toast.error("Branch assignment is required.", { description: "Your account is not assigned to a branch. Contact an administrator." });
+      return;
+    }
+    form.reset({ username: "", password: "", fullName: "", email: "", mobile: "", branchCode: isBranchManager ? managedBranchCode : "", warehouseCode: "", roleId: "", isActive: true });
     setOpen(true);
   };
   const openEdit = (u: SystemUser) => {
@@ -69,6 +85,11 @@ export default function UsersPage() {
       toast.error("A user role is required.", { description: "Select Admin, Manager, Branch Manager, or Cashier before saving." });
       return;
     }
+    if (isBranchManager && !["Cashier", "Branch_Manager"].includes(role.roleName)) {
+      form.setError("roleId", { message: "You can create only Cashier or Branch Manager users." });
+      toast.error("This role is not available.", { description: "Branch Managers can create only Cashier and Branch Manager users for their own branch." });
+      return;
+    }
     const needsBranch = !["Admin", "Manager", "InventoryClerk"].includes(role.roleName);
     if (needsBranch && !v.branchCode) {
       form.setError("branchCode", { message: `Select the branch this ${role.roleName.replace(/_/g, " ")} belongs to.` });
@@ -80,7 +101,7 @@ export default function UsersPage() {
       toast.error("Main Warehouse is required.", { description: "Inventory Clerk users must be assigned to an active central warehouse." });
       return;
     }
-    const branchCode = role.roleName === "InventoryClerk" ? null : v.branchCode || null;
+    const branchCode = role.roleName === "InventoryClerk" ? null : (isBranchManager ? managedBranchCode : v.branchCode) || null;
     const warehouseCode = role.roleName === "InventoryClerk" ? v.warehouseCode : null;
     if (editing) {
       updateM.mutate(
@@ -113,19 +134,20 @@ export default function UsersPage() {
       { accessorKey: "warehouseCode", header: "Main Warehouse", cell: ({ row }) => row.original.warehouseCode || "—" },
       { accessorKey: "lastLogin", header: "Last Login", cell: ({ row }) => formatDateTime(row.original.lastLogin) },
       { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "success" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
-      { id: "actions", header: "", cell: ({ row }) => (
+      { id: "actions", header: "", cell: ({ row }) => isBranchManager ? null : (
         <div className="flex justify-end gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleting(row.original)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       )},
     ],
-    [branches, warehouses]
+    [branches, isBranchManager, warehouses]
   );
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Users" description="Manage system users, roles, and branch assignments." actions={<Button onClick={openCreate}><Plus className="h-4 w-4" /> New User</Button>} />
+      <PageHeader title="Users" description={isBranchManager ? "Create Cashier and Branch Manager accounts for your branch." : "Manage system users, roles, and branch assignments."} actions={<Button onClick={openCreate} disabled={isBranchManager && !managedBranchCode}><Plus className="h-4 w-4" /> New User</Button>} />
+      {isBranchManager && !managedBranchCode && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">Your Branch Manager account is not assigned to a branch. Contact an administrator before creating users.</p>}
       <DataTable columns={columns} data={data ?? []} isLoading={isLoading} error={isError ? "Failed to load." : null} onRetry={refetch} searchPlaceholder="Search users…" emptyTitle="No users yet" />
 
       <FormDialog open={open} onOpenChange={setOpen} title={editing ? `Edit ${editing.username}` : "New User"} onSubmit={onSubmit} isSubmitting={createM.isPending || updateM.isPending} submitLabel={editing ? "Save" : "Create"}>
@@ -143,11 +165,16 @@ export default function UsersPage() {
             <Label>Role *</Label>
             <Select value={selectedRoleId} onValueChange={(v) => { const role = roles?.find((item) => String(item.roleId) === v); form.setValue("roleId", v); if (role?.roleName === "InventoryClerk") form.setValue("branchCode", ""); else form.setValue("warehouseCode", ""); form.clearErrors(["roleId", "branchCode", "warehouseCode"]); }}>
               <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-              <SelectContent>{roles?.map((r) => <SelectItem key={r.roleId} value={String(r.roleId)}>{r.roleName.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              <SelectContent>{permittedRoles.map((r) => <SelectItem key={r.roleId} value={String(r.roleId)}>{r.roleName.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
             </Select>
             {form.formState.errors.roleId && <p className="text-xs text-destructive">{form.formState.errors.roleId.message}</p>}
           </div>
-          {!isInventoryClerk && <div className="space-y-1.5">
+          {!isInventoryClerk && isBranchManager && <div className="space-y-1.5">
+            <Label>Branch *</Label>
+            <Input value={managedBranchName} disabled />
+            <p className="text-xs text-muted-foreground">New users are automatically assigned to your branch.</p>
+          </div>}
+          {!isInventoryClerk && !isBranchManager && <div className="space-y-1.5">
             <Label>Branch{branchRequired ? " *" : " (optional)"}</Label>
             <Select value={form.watch("branchCode") || NO_BRANCH} onValueChange={(v) => { form.setValue("branchCode", v === NO_BRANCH ? "" : v); form.clearErrors("branchCode"); }}>
               <SelectTrigger><SelectValue placeholder={branchRequired ? "Select branch" : "No branch"} /></SelectTrigger>

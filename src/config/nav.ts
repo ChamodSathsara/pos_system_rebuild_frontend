@@ -111,7 +111,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Administration",
     items: [
       { label: "Organization", href: "/admin/organization", icon: Building2, roles: ["Admin"] },
-      { label: "Users", href: "/admin/users", icon: Users, roles: ["Admin"] },
+      { label: "Users", href: "/admin/users", icon: Users, roles: ["Admin", "Branch_Manager"] },
       { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, roles: ["Admin"] },
       { label: "Warehouses", href: "/admin/warehouses", icon: Warehouse, roles: ["Admin"] },
     ],
