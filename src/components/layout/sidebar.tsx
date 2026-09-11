@@ -8,7 +8,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isNavItemVisible } from "@/config/nav";
 import { useAuthStore } from "@/store/auth-store";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function Sidebar({
   className,
@@ -48,7 +47,7 @@ export function Sidebar({
         {!collapsed && <span className="whitespace-nowrap text-[15px] font-bold text-white">Vantage POS</span>}
       </div>
 
-      <ScrollArea className={cn("flex-1 py-4", collapsed ? "px-2" : "px-3")}>
+      <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-thin", collapsed ? "px-2" : "px-3")}>
         <nav className="space-y-5">
           {NAV_GROUPS.map((group) => {
             if (role === "InventoryClerk" && group.label !== "Main Warehouse") return null;
@@ -89,7 +88,7 @@ export function Sidebar({
             );
           })}
         </nav>
-      </ScrollArea>
+      </div>
 
       <div className={cn("border-t border-sidebar-border p-4 text-[11px] text-sidebar-foreground/40", collapsed && "px-2 text-center")}>
         {collapsed ? "v1.0" : "Vantage POS v1.0"}
