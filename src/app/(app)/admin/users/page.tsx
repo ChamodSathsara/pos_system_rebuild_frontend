@@ -58,6 +58,11 @@ export default function UsersPage() {
   };
 
   const onSubmit = form.handleSubmit((v) => {
+    if (!v.fullName.trim()) {
+      form.setError("fullName", { message: "Enter the user's full name." });
+      toast.error("Full name is required.", { description: "Enter the name that should appear on this user's account." });
+      return;
+    }
     const role = roles?.find((item) => String(item.roleId) === v.roleId);
     if (!role) {
       form.setError("roleId", { message: "Select a role for this user." });
@@ -84,7 +89,12 @@ export default function UsersPage() {
       );
     } else {
       if (!v.username || !v.password) {
-        toast.error("Username and password are required.");
+        toast.error("Username and password are required.", { description: "Enter both credentials before creating the user." });
+        return;
+      }
+      if (v.password.length < 6) {
+        form.setError("password", { message: "Use at least 6 characters for the password." });
+        toast.error("Password is too short.", { description: "Use a password with at least 6 characters." });
         return;
       }
       createM.mutate(
@@ -126,7 +136,7 @@ export default function UsersPage() {
               <div className="space-y-1.5"><Label>Password *</Label><Input type="password" {...form.register("password")} /></div>
             </>
           )}
-          <div className="col-span-2 space-y-1.5"><Label>Full Name</Label><Input {...form.register("fullName")} /></div>
+          <div className="col-span-2 space-y-1.5"><Label>Full Name *</Label><Input {...form.register("fullName", { onChange: () => form.clearErrors("fullName") })} />{form.formState.errors.fullName && <p className="text-xs text-destructive">{form.formState.errors.fullName.message}</p>}</div>
           <div className="space-y-1.5"><Label>Email</Label><Input type="email" inputMode="email" autoComplete="email" placeholder="e.g. name@example.com" {...form.register("email", { validate: validateEmail })} />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
           <div className="space-y-1.5"><Label>Mobile</Label><Input type="tel" inputMode="tel" placeholder="e.g. 0771234567" {...form.register("mobile", { validate: validateSriLankanMobile })} />{form.formState.errors.mobile && <p className="text-xs text-destructive">{form.formState.errors.mobile.message}</p>}</div>
           <div className="space-y-1.5">

@@ -53,10 +53,17 @@ function comparable(value: string) {
 
 /** Keeps useful validation/business details while preventing stack traces and source paths from reaching users. */
 export function getUserFacingDetails(details: unknown, title?: string): string[] {
-  if (!Array.isArray(details)) return [];
   const titleText = title ? comparable(title) : "";
 
-  return [...new Set(details.flatMap((detail) => {
+  const values = typeof details === "string"
+    ? [details]
+    : Array.isArray(details)
+      ? details
+      : details && typeof details === "object"
+        ? Object.values(details as Record<string, unknown>).flatMap((value) => Array.isArray(value) ? value : [value])
+        : [];
+
+  return [...new Set(values.flatMap((detail) => {
     if (typeof detail !== "string") return [];
     const cleaned = detail
       .replace(STACK_TRACE_MARKERS, "")

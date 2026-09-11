@@ -6,9 +6,9 @@ import { getUserFacingError } from "@/lib/errors";
 
 export class ApiError extends Error {
   status?: number;
-  errors?: string[] | null;
+  errors?: unknown;
 
-  constructor(message: string, status?: number, errors?: string[] | null) {
+  constructor(message: string, status?: number, errors?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
