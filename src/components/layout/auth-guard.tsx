@@ -42,7 +42,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isHydrated || user?.roleName !== "InventoryClerk") return;
-    const allowed = ["/main-warehouse"];
+    // InventoryClerk is restricted to Central Warehouse operations, but device
+    // preferences (receipt-printer setup) must remain available on every POS.
+    const allowed = ["/main-warehouse", "/settings/printer"];
     if (!allowed.some((route) => pathname === route || pathname.startsWith(`${route}/`))) router.replace("/main-warehouse");
   }, [isHydrated, user?.roleName, pathname, router]);
 
