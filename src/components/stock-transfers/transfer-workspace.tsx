@@ -52,7 +52,7 @@ import type {
   TransferDispatch,
 } from "@/types";
 
-type Mode = "requests" | "queue" | "dispatches" | "incoming";
+type Mode = "requests" | "queue" | "requestQueue" | "dispatches" | "incoming";
 type RequestLineDraft = { itemCode: string; quantity: string; remarks: string };
 type DispatchDraft = {
   transferRequestLineId: number;
@@ -96,7 +96,7 @@ export function TransferWorkspace({
   const isInventoryClerk = user?.roleName === "InventoryClerk";
   const { data: allWarehouses } = useWarehouses(
     undefined,
-    !isInventoryClerk || mode === "queue",
+    !isInventoryClerk || mode === "queue" || mode === "requestQueue",
   );
   const {
     data: assignedWarehouse,
@@ -125,7 +125,7 @@ export function TransferWorkspace({
   const effectiveWarehouse = isInventoryClerk
     ? (user?.warehouseCode ?? "")
     : warehouseCode ||
-      (mode === "queue" || mode === "dispatches"
+      (mode === "queue" || mode === "requestQueue" || mode === "dispatches"
         ? central[0]?.warehouseCode
         : ownWarehouses[0]?.warehouseCode) ||
       "";
@@ -149,6 +149,7 @@ export function TransferWorkspace({
         (t) =>
           (mode !== "queue" ||
             ["Submitted", "AwaitingBranch", "Accepted", "Picking"].includes(t.status)) &&
+          (mode !== "requestQueue" || ["Accepted", "Picking"].includes(t.status)) &&
           (mode !== "incoming" ||
             ["AwaitingBranch", "Accepted", "Dispatched", "Received"].includes(
               t.status,
@@ -199,6 +200,7 @@ export function TransferWorkspace({
   const title = {
     requests: "Stock Requests",
     queue: "Main Warehouse Request Queue",
+    requestQueue: "Main Warehouse Request Queue",
     dispatches: "Dispatch History",
     incoming: "Incoming Deliveries",
   }[mode];
@@ -280,7 +282,7 @@ export function TransferWorkspace({
     },
   ];
   const selectorWarehouses =
-    mode === "queue" || mode === "dispatches" ? central : ownWarehouses;
+    mode === "queue" || mode === "requestQueue" || mode === "dispatches" ? central : ownWarehouses;
   if (isInventoryClerk && !user?.warehouseCode)
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6">
@@ -317,7 +319,7 @@ export function TransferWorkspace({
     <div className="space-y-6">
       <PageHeader
         title={titleOverride || title}
-        description="Internal Main Warehouse to branch warehouse stock movements."
+        description={mode === "requestQueue" ? "Accepted branch requests waiting for batch allocation and dispatch." : "Internal Main Warehouse to branch warehouse stock movements."}
         actions={
           <div className="flex gap-2">
             <Select
@@ -369,7 +371,13 @@ export function TransferWorkspace({
               ["In Transit", counts.transit],
               ["Today's Dispatch Qty", counts.dispatchQty],
             ]
-          : [
+          : mode === "requestQueue"
+            ? [
+                ["Accepted Requests", counts.accepted],
+                ["Ready to Dispatch", counts.ready],
+                ["Queue Quantity", rows.flatMap((request) => request.lines).reduce((sum, line) => sum + line.requestedQty, 0)],
+              ]
+            : [
               ["Pending Requests", counts.pending],
               ["In Transit Deliveries", counts.transit],
               ["Received Today", counts.received],
@@ -677,7 +685,7 @@ function TransferActions({
           Accept
         </Button>
       )}
-      {mode === "queue" &&
+      {["queue", "requestQueue"].includes(mode) &&
         ["Accepted", "Picking"].includes(transfer.status) && (
           <Button size="xs" onClick={() => onDispatch(transfer)}>
             <Truck /> Dispatch

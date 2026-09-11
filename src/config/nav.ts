@@ -72,7 +72,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Dashboard", href: "/main-warehouse", icon: LayoutDashboard, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Batch Stock", href: "/main-warehouse/batch-stock", icon: Boxes, roles: ["Admin", "Manager", "InventoryClerk"] },
-      { label: "Stock In", href: "/main-warehouse/stock-in", icon: PackagePlus, roles: ["InventoryClerk"] },
+      { label: "Central Stock In", href: "/main-warehouse/stock-in", icon: PackagePlus, roles: ["Admin", "Manager", "InventoryClerk"] },
+      { label: "Stock Receipt History", href: "/main-warehouse/stock-receipts", icon: ReceiptText, roles: ["Admin", "Manager", "InventoryClerk"] },
       { label: "Damage", href: "/main-warehouse/damage", icon: AlertTriangle, roles: ["InventoryClerk"] },
       { label: "Stock Transfer", href: "/main-warehouse/stock-transfer", icon: ArrowRightLeft, roles: ["InventoryClerk"] },
       { label: "Request Queue", href: "/main-warehouse/request-queue", icon: ClipboardList, roles: ["Admin", "Manager", "InventoryClerk"] },
@@ -97,7 +98,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Reports",
-    items: [{ label: "Sales Reports", href: "/reports", icon: BarChart3, roles: ["Admin", "Manager", "Branch_Manager"] }],
+    items: [
+      { label: "Sales Reports", href: "/reports", icon: BarChart3, roles: ["Admin", "Manager", "Branch_Manager"] },
+      { label: "Central Inventory Reports", href: "/main-warehouse/reports", icon: BarChart3, roles: ["Admin", "Manager", "InventoryClerk"] },
+    ],
   },
   {
     label: "Settings",

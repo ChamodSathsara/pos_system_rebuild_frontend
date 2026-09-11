@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { damageItemsApi, openingStocksApi, stockBatchesApi, stockInventoriesApi, stockMovementsApi } from "@/lib/api";
+import { centralStockReceiptsApi, damageItemsApi, openingStocksApi, stockBatchesApi, stockInventoriesApi, stockMovementsApi } from "@/lib/api";
 import { useApiMutation } from "./use-api-mutation";
 import type {
   CreateDamageItemRequest,
+  CreateCentralStockReceiptRequest,
   CreateOpeningStockRequest,
   CreateStockBatchRequest,
   CreateStockInventoryRequest,
@@ -18,12 +19,23 @@ export const sq = {
   batches: (stockId: number) => ["stock-batches", stockId] as const,
   movements: (params?: Record<string, unknown>) => ["stock-movements", params ?? {}] as const,
   damage: (params?: Record<string, unknown>) => ["damage-items", params ?? {}] as const,
+  centralReceipts: (params?: Record<string, unknown>) => ["central-stock-receipts", params ?? {}] as const,
 };
 
 export function useCreateOpeningStock() {
   return useApiMutation((body: CreateOpeningStockRequest) => openingStocksApi.create(body), {
     successMessage: (response) => response.message,
     invalidateKeys: [["stock-inventories"], ["stock-batches"], ["stock-movements"]],
+  });
+}
+
+export function useCentralStockReceipts(params?: { warehouseCode?: string; fromDate?: string; toDate?: string }, enabled = true) {
+  return useQuery({ queryKey: sq.centralReceipts(params), queryFn: () => centralStockReceiptsApi.list(params), enabled });
+}
+
+export function useCreateCentralStockReceipt() {
+  return useApiMutation((body: CreateCentralStockReceiptRequest) => centralStockReceiptsApi.create(body), {
+    invalidateKeys: [["central-stock-receipts"], ["stock-inventories"], ["stock-batches"], ["stock-movements"]],
   });
 }
 

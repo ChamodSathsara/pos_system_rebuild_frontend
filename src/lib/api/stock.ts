@@ -1,4 +1,4 @@
-import { api, cleanParams } from "./client";
+import { api, cleanParams, httpClient } from "./client";
 import type {
   CreateDamageItemRequest,
   CreateOpeningStockRequest,
@@ -17,9 +17,29 @@ import type {
   UpdateStockMovementRequest,
 } from "@/types";
 
+async function download(url: string, filename: string) {
+  const response = await httpClient.get<Blob>(url, { responseType: "blob" });
+  const href = URL.createObjectURL(response.data);
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(href), 1_000);
+}
+
 export const openingStocksApi = {
   create: (body: CreateOpeningStockRequest) =>
     api.postWithMessage<OpeningStockResult>("/api/opening-stocks", body),
+};
+
+export const centralStockReceiptsApi = {
+  create: (body: import("@/types").CreateCentralStockReceiptRequest) =>
+    api.postWithMessage<import("@/types").CentralStockReceipt>("/api/central-stock-receipts", body),
+  list: (params?: { warehouseCode?: string; fromDate?: string; toDate?: string }) =>
+    api.get<import("@/types").CentralStockReceipt[]>("/api/central-stock-receipts", { params: cleanParams({ ...params }) }),
+  get: (receiptId: number) => api.get<import("@/types").CentralStockReceipt>(`/api/central-stock-receipts/${receiptId}`),
+  receiptPdf: (receiptId: number, receiptNo: string) =>
+    download(`/api/central-stock-receipts/${receiptId}/receipt.pdf`, `${receiptNo}.pdf`),
 };
 
 export const stockInventoriesApi = {

@@ -43,6 +43,50 @@ export interface OpeningStockResult {
   referenceType: string;
 }
 
+export interface CentralStockReceiptItemRequest {
+  itemCode: string;
+  quantity: number;
+  unitCost: number;
+  sellingPrice: number;
+  expiryDate?: string | null;
+}
+
+export interface CreateCentralStockReceiptRequest {
+  warehouseCode: string;
+  receiptDate: string;
+  referenceNo?: string | null;
+  remarks?: string | null;
+  items: CentralStockReceiptItemRequest[];
+}
+
+export interface CentralStockReceiptLine {
+  receiptLineId: number;
+  itemCode: string;
+  itemName?: string | null;
+  batchId: number;
+  batchNo: string;
+  quantity: number;
+  unitCost: number;
+  sellingPrice: number;
+  totalCost: number;
+  expiryDate?: string | null;
+}
+
+export interface CentralStockReceipt {
+  receiptId: number;
+  receiptNo: string;
+  warehouseCode: string;
+  warehouseName?: string | null;
+  receiptDate: string;
+  referenceNo?: string | null;
+  remarks?: string | null;
+  totalQuantity: number;
+  totalCost: number;
+  receivedBy?: string | null;
+  createdAt?: string | null;
+  items: CentralStockReceiptLine[];
+}
+
 export interface StockBatch {
   batchId: number;
   stockId: number;
