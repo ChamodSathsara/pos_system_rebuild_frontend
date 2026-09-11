@@ -473,7 +473,7 @@ export default function PosTerminalPage() {
 
       <Dialog open={paymentDialogOpen} onOpenChange={(open) => !createSale.isPending && setPaymentDialogOpen(open)}>
         <DialogContent
-          className="gap-0 overflow-hidden p-0 sm:max-w-[400px]"
+          className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[400px]"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             requestAnimationFrame(() => {
@@ -486,7 +486,7 @@ export default function PosTerminalPage() {
             <DialogTitle className="text-xl">Complete Payment</DialogTitle>
             <p className="text-xs text-muted-foreground">{cart.length} {cart.length === 1 ? "item" : "items"} in this sale</p>
           </DialogHeader>
-          <div className="space-y-3 px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
             <div className="flex items-end justify-between gap-4">
               <div>
                 <Label htmlFor="bill-discount" className="font-semibold">Bill discount</Label>
