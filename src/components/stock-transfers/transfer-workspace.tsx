@@ -151,6 +151,7 @@ export function TransferWorkspace({
     () =>
       (query.data ?? []).filter(
         (t) =>
+          (!status || t.status === status) &&
           (mode !== "queue" ||
             ["Submitted", "AwaitingBranch", "Accepted", "Picking"].includes(t.status)) &&
           (mode !== "requestQueue" || ["Accepted", "Picking"].includes(t.status)) &&
