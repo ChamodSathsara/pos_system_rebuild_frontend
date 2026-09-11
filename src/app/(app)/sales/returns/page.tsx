@@ -13,12 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCreateSaleReturn, useSale, useSaleReturns } from "@/hooks/use-sale";
+import { useSystemUsers } from "@/hooks/use-security";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { SaleReturn } from "@/types";
 import { toast } from "sonner";
 
 export default function SaleReturnsPage() {
   const { data, isLoading, isError, refetch } = useSaleReturns();
+  const { data: users } = useSystemUsers();
   const [open, setOpen] = useState(false);
 
   const columns = useMemo<ColumnDef<SaleReturn>[]>(
@@ -28,9 +30,9 @@ export default function SaleReturnsPage() {
       { accessorKey: "returnDate", header: "Date", cell: ({ row }) => formatDate(row.original.returnDate) },
       { accessorKey: "reason", header: "Reason", cell: ({ row }) => row.original.reason || "—" },
       { accessorKey: "totalReturnAmount", header: "Amount", cell: ({ row }) => <span className="num">{formatMoney(row.original.totalReturnAmount)}</span> },
-      { accessorKey: "createdBy", header: "By" },
+      { accessorKey: "createdBy", header: "By", cell: ({ row }) => users?.find((user) => user.userCode === row.original.createdBy)?.fullName || users?.find((user) => user.userCode === row.original.createdBy)?.username || row.original.createdBy || "—" },
     ],
-    []
+    [users]
   );
 
   return (

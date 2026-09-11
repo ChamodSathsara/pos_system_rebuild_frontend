@@ -19,7 +19,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { initialsOf } from "@/lib/format";
 import { MapPin, Warehouse } from "lucide-react";
 import { useCashierShiftSession } from "./cashier-shift-guard";
-import { useWarehouse } from "@/hooks/use-organization";
+import { useBranches, useWarehouse } from "@/hooks/use-organization";
 
 export function Topbar({ title }: { title?: string }) {
   const router = useRouter();
@@ -27,6 +27,8 @@ export function Topbar({ title }: { title?: string }) {
   const logout = useAuthStore((s) => s.logout);
   const { requestLogout } = useCashierShiftSession();
   const assignedWarehouse = useWarehouse(user?.roleName === "InventoryClerk" ? user.warehouseCode : undefined);
+  const branches = useBranches();
+  const assignedBranchName = branches.data?.find((branch) => branch.branchCode === user?.branchCode)?.branchName;
 
   const handleLogout = async () => {
     if (requestLogout) {
@@ -57,7 +59,7 @@ export function Topbar({ title }: { title?: string }) {
         {user?.branchCode && (
           <Badge variant="outline" className="hidden gap-1 sm:inline-flex">
             <MapPin className="h-3 w-3" />
-            {user.branchCode}
+            {assignedBranchName || user.branchCode}
           </Badge>
         )}
         {user?.roleName === "InventoryClerk" && user.warehouseCode && (

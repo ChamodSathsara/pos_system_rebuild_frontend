@@ -26,6 +26,7 @@ export interface Discount {
   applicableTo: DiscountApplicableTo;
   isActive: boolean;
   createdBy?: string | null;
+  createdByName?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

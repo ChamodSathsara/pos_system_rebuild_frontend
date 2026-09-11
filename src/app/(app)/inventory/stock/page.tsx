@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCreateStockBatch, useStockBatches, useReconcileStock, useStockInventories, useStockMovements, useUpdateBatchSellingPrice } from "@/hooks/use-stock";
 import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
-import { useWarehouse, useWarehouses } from "@/hooks/use-organization";
+import { useBranches, useWarehouse, useWarehouses } from "@/hooks/use-organization";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import type { StockBatch, StockInventory } from "@/types";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean
   const assignedWarehouseCode = isInventoryClerk ? user?.warehouseCode ?? "" : "";
   const assignedWarehouse = useWarehouse(isInventoryClerk ? assignedWarehouseCode : undefined);
   const allWarehouses = useWarehouses(undefined, !isInventoryClerk);
+  const branchesQuery = useBranches();
   const warehouseList = isInventoryClerk ? (assignedWarehouse.data ? [assignedWarehouse.data] : []) : (allWarehouses.data ?? []);
   const centralWarehouses = warehouseList.filter((warehouse) => warehouse.isCentralWarehouse && warehouse.isActive);
   const centralCodes = useMemo(() => new Set(centralWarehouses.map((warehouse) => warehouse.warehouseCode)), [centralWarehouses]);
@@ -53,12 +54,16 @@ export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean
     () => new Map(warehouseList.map((warehouse) => [warehouse.warehouseCode, warehouse.warehouseName])),
     [warehouseList],
   );
+  const branchNameByCode = useMemo(
+    () => new Map((branchesQuery.data ?? []).map((branch) => [branch.branchCode, branch.branchName])),
+    [branchesQuery.data],
+  );
 
   const columns = useMemo<ColumnDef<StockInventory>[]>(
     () => [
       { accessorKey: "itemCode", header: "Item Code" },
       { accessorKey: "itemName", header: "Item", cell: ({ row }) => row.original.itemName || "—" },
-      { accessorKey: "branchCode", header: "Branch" },
+      { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => branchNameByCode.get(row.original.branchCode) || (centralOnly ? "Central Warehouse" : row.original.branchCode) },
       { accessorKey: "warehouseCode", header: "Warehouse", cell: ({ row }) => warehouseNameByCode.get(row.original.warehouseCode) || row.original.warehouseCode },
       {
         accessorKey: "currentQty",
@@ -91,7 +96,7 @@ export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean
         ),
       },
     ],
-    [lowStockIds, warehouseNameByCode]
+    [lowStockIds, warehouseNameByCode, branchNameByCode, centralOnly]
   );
 
   if (isInventoryClerk && !assignedWarehouseCode) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Main Warehouse is not assigned.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin. Warehouse actions are unavailable.</p></div>;

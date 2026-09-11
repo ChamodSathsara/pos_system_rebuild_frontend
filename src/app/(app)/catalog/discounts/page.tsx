@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCreateDiscount, useDeleteDiscount, useDiscounts, useUpdateDiscount } from "@/hooks/use-misc";
 import { useProducts } from "@/hooks/use-catalog";
+import { useSystemUsers } from "@/hooks/use-security";
 import { DiscountMethod, DiscountType, type Discount, type Product } from "@/types";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ interface FormValues {
 export default function DiscountsPage() {
   const { data, isLoading, isError, refetch } = useDiscounts();
   const { data: products, isLoading: productsLoading } = useProducts({ isActive: true });
+  const { data: users } = useSystemUsers();
   const createM = useCreateDiscount();
   const updateM = useUpdateDiscount();
   const deleteM = useDeleteDiscount();
@@ -158,6 +160,7 @@ export default function DiscountsPage() {
           row.original.discountMethod === "Percentage" ? `${row.original.discountValue}%` : formatMoney(row.original.discountValue),
       },
       { accessorKey: "applicableTo", header: "Applies To", cell: ({ row }) => row.original.applicableTo.replace(/_/g, " ") },
+      { id: "createdBy", header: "Created By", cell: ({ row }) => row.original.createdByName || users?.find((user) => user.userCode === row.original.createdBy)?.fullName || users?.find((user) => user.userCode === row.original.createdBy)?.username || row.original.createdBy || "—" },
       { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "success" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
       {
         id: "actions",
@@ -170,7 +173,7 @@ export default function DiscountsPage() {
         ),
       },
     ],
-    []
+    [users]
   );
 
   return (

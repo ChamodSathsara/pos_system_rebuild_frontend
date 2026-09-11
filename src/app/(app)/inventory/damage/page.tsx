@@ -19,6 +19,7 @@ import { useCreateDamageItem, useDamageItems, useUpdateDamageItem } from "@/hook
 import { useProducts } from "@/hooks/use-catalog";
 import { useBranches, useWarehouses } from "@/hooks/use-organization";
 import { useAuthStore, useEffectiveBranchCode } from "@/store/auth-store";
+import { useSystemUsers } from "@/hooks/use-security";
 import { isBranchScoped } from "@/lib/permissions";
 import { formatDate, formatMoney } from "@/lib/format";
 import { DamageItemStatus, type DamageItem } from "@/types";
@@ -38,6 +39,7 @@ export default function DamageItemsPage() {
   const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
   const branchCode = useEffectiveBranchCode(branchFilter);
   const { data, isLoading, isError, refetch } = useDamageItems({ branchCode });
+  const { data: users } = useSystemUsers();
 
   const [open, setOpen] = useState(false);
   const createM = useCreateDamageItem();
@@ -100,6 +102,7 @@ export default function DamageItemsPage() {
       { accessorKey: "costAmount", header: "Cost", cell: ({ row }) => <span className="num">{formatMoney(row.original.costAmount)}</span> },
       { accessorKey: "reason", header: "Reason", cell: ({ row }) => row.original.reason || "—" },
       { accessorKey: "damageDate", header: "Date", cell: ({ row }) => formatDate(row.original.damageDate) },
+      { id: "reportedBy", header: "Reported By", cell: ({ row }) => row.original.reportedByName || users?.find((systemUser) => systemUser.userCode === row.original.reportedBy)?.fullName || users?.find((systemUser) => systemUser.userCode === row.original.reportedBy)?.username || row.original.reportedBy || "—" },
       { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} /> },
       {
         id: "actions",
@@ -119,7 +122,7 @@ export default function DamageItemsPage() {
         },
       },
     ],
-    []
+    [users]
   );
 
   return (

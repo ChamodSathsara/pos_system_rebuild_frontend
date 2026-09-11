@@ -109,7 +109,7 @@ export default function UsersPage() {
       { accessorKey: "userCode", header: "Code" },
       { accessorKey: "username", header: "Username", cell: ({ row }) => <div><p className="font-medium">{row.original.username}</p><p className="text-xs text-muted-foreground">{row.original.fullName}</p></div> },
       { accessorKey: "roleName", header: "Role", cell: ({ row }) => row.original.roleName ? <Badge variant="outline">{row.original.roleName.replace(/_/g, " ")}</Badge> : "—" },
-      { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => row.original.branchCode || "All" },
+      { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => branches?.find((branch) => branch.branchCode === row.original.branchCode)?.branchName || (row.original.branchCode ? row.original.branchCode : "All") },
       { accessorKey: "warehouseCode", header: "Main Warehouse", cell: ({ row }) => row.original.warehouseCode || "—" },
       { accessorKey: "lastLogin", header: "Last Login", cell: ({ row }) => formatDateTime(row.original.lastLogin) },
       { accessorKey: "isActive", header: "Status", cell: ({ row }) => <Badge variant={row.original.isActive ? "success" : "secondary"}>{row.original.isActive ? "Active" : "Inactive"}</Badge> },
@@ -120,7 +120,7 @@ export default function UsersPage() {
         </div>
       )},
     ],
-    []
+    [branches, warehouses]
   );
 
   return (
