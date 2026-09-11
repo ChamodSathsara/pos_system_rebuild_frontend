@@ -54,6 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Catalog",
     items: [
       { label: "Products", href: "/catalog/products", icon: Package, roles: ["Admin", "Manager", "Branch_Manager"] },
+      { label: "Customers", href: "/catalog/customers", icon: Users, roles: ["Admin", "Manager", "Branch_Manager"] },
       { label: "Categories & Brands", href: "/catalog/taxonomy", icon: Tags, roles: ["Admin", "Manager"] },
       { label: "Discounts", href: "/catalog/discounts", icon: Percent, roles: ["Admin", "Manager"] },
     ],
