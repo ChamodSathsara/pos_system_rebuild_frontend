@@ -12,8 +12,19 @@ import { BranchFilter } from "@/components/shared/branch-filter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateGrn, useGrns, usePurchaseOrders, usePurchaseOrder } from "@/hooks/use-purchase";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useCreateGrn,
+  useGrns,
+  usePurchaseOrders,
+  usePurchaseOrder,
+} from "@/hooks/use-purchase";
 import { useStockTransfer } from "@/hooks/use-stock-transfer";
 import { useWarehouses } from "@/hooks/use-organization";
 import { useEffectiveBranchCode } from "@/store/auth-store";
@@ -26,7 +37,9 @@ function GrnPageInner() {
   const searchParams = useSearchParams();
   const prefillPoNo = searchParams.get("poNo") ?? undefined;
 
-  const [branchFilter, setBranchFilter] = useState<string | undefined>(undefined);
+  const [branchFilter, setBranchFilter] = useState<string | undefined>(
+    undefined,
+  );
   const branchCode = useEffectiveBranchCode(branchFilter);
   const { data, isLoading, isError, refetch } = useGrns({ branchCode });
 
@@ -41,17 +54,30 @@ function GrnPageInner() {
         header: "Source",
         cell: ({ row }) => {
           const grn = row.original;
-          const isInternal = !!grn.isInternalTransfer && !!grn.sourceWarehouseCode && grn.vendorId == null;
+          const isInternal =
+            !!grn.isInternalTransfer &&
+            !!grn.sourceWarehouseCode &&
+            grn.vendorId == null;
           return isInternal
             ? `Central Warehouse: ${grn.sourceWarehouseName || grn.sourceWarehouseCode}`
             : grn.vendorName || grn.vendorCode || "—";
         },
       },
       { accessorKey: "branchCode", header: "Branch" },
-      { accessorKey: "grnDate", header: "Date", cell: ({ row }) => formatDate(row.original.grnDate) },
-      { accessorKey: "totalAmount", header: "Total", cell: ({ row }) => <span className="num">{formatMoney(row.original.totalAmount)}</span> },
+      {
+        accessorKey: "grnDate",
+        header: "Date",
+        cell: ({ row }) => formatDate(row.original.grnDate),
+      },
+      {
+        accessorKey: "totalAmount",
+        header: "Total",
+        cell: ({ row }) => (
+          <span className="num">{formatMoney(row.original.totalAmount)}</span>
+        ),
+      },
     ],
-    []
+    [],
   );
 
   return (
@@ -62,14 +88,29 @@ function GrnPageInner() {
         actions={
           <div className="flex items-center gap-2">
             <BranchFilter value={branchFilter} onChange={setBranchFilter} />
-            <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New GRN</Button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" /> New GRN
+            </Button>
           </div>
         }
       />
 
-      <DataTable columns={columns} data={data ?? []} isLoading={isLoading} error={isError ? "Failed to load." : null} onRetry={refetch} searchPlaceholder="Search GRN or PO number…" emptyTitle="No GRNs recorded yet" />
+      <DataTable
+        columns={columns}
+        data={data ?? []}
+        isLoading={isLoading}
+        error={isError ? "Failed to load." : null}
+        onRetry={refetch}
+        searchPlaceholder="Search GRN or PO number…"
+        emptyTitle="No GRNs recorded yet"
+      />
 
-      <CreateGrnDialog open={open} onOpenChange={setOpen} defaultBranch={branchCode} prefillPoNo={prefillPoNo} />
+      <CreateGrnDialog
+        open={open}
+        onOpenChange={setOpen}
+        defaultBranch={branchCode}
+        prefillPoNo={prefillPoNo}
+      />
     </div>
   );
 }
@@ -113,21 +154,49 @@ function CreateGrnDialog({
   defaultBranch?: string;
   prefillPoNo?: string;
 }) {
-  const { data: openPOs } = usePurchaseOrders({ status: "Open", branchCode: defaultBranch });
-  const { data: partialPOs } = usePurchaseOrders({ status: "PartiallyReceived", branchCode: defaultBranch });
-  const receivablePOs = useMemo(() => [...(openPOs ?? []), ...(partialPOs ?? [])], [openPOs, partialPOs]);
+  const { data: openPOs } = usePurchaseOrders({
+    status: "Open",
+    branchCode: defaultBranch,
+  });
+  const { data: partialPOs } = usePurchaseOrders({
+    status: "PartiallyReceived",
+    branchCode: defaultBranch,
+  });
+  const receivablePOs = useMemo(
+    () => [...(openPOs ?? []), ...(partialPOs ?? [])],
+    [openPOs, partialPOs],
+  );
 
   const form = useForm<FormValues>({
-    defaultValues: { poNo: prefillPoNo ?? "", branchCode: defaultBranch ?? "", warehouseCode: "", invoiceNo: "", invoiceDate: "", remarks: "", items: [] },
+    defaultValues: {
+      poNo: prefillPoNo ?? "",
+      branchCode: defaultBranch ?? "",
+      warehouseCode: "",
+      invoiceNo: "",
+      invoiceDate: "",
+      remarks: "",
+      items: [],
+    },
   });
-  const { fields, replace } = useFieldArray({ control: form.control, name: "items" });
+  const { fields, replace } = useFieldArray({
+    control: form.control,
+    name: "items",
+  });
   const selectedPoNo = form.watch("poNo");
   const { data: selectedPO } = usePurchaseOrder(selectedPoNo || undefined);
-  const isInternalPO = !!selectedPO?.isInternalTransfer && !!selectedPO.sourceWarehouseCode && selectedPO.vendorId == null;
-  const transferQuery = useStockTransfer(isInternalPO ? selectedPO?.transferRequestId : undefined);
+  const isInternalPO =
+    !!selectedPO?.isInternalTransfer &&
+    !!selectedPO.sourceWarehouseCode &&
+    selectedPO.vendorId == null;
+  const transferQuery = useStockTransfer(
+    isInternalPO ? selectedPO?.transferRequestId : undefined,
+  );
   const linkedTransfer = transferQuery.data;
-  const internalDispatchCompleted = !isInternalPO || linkedTransfer?.status === "Dispatched";
-  const { data: warehouses } = useWarehouses(form.watch("branchCode") || undefined);
+  const internalDispatchCompleted =
+    !isInternalPO || linkedTransfer?.status === "Dispatched";
+  const { data: warehouses } = useWarehouses(
+    form.watch("branchCode") || undefined,
+  );
   const createM = useCreateGrn();
 
   useEffect(() => {
@@ -137,35 +206,44 @@ function CreateGrnDialog({
       const dispatchedLines = selectedDispatch?.lines ?? [];
       if (isInternalPO && selectedDispatch) {
         form.setValue("invoiceNo", selectedDispatch.dispatchNo);
-        form.setValue("invoiceDate", selectedDispatch.dispatchedAt?.slice(0, 10) ?? "");
+        form.setValue(
+          "invoiceDate",
+          selectedDispatch.dispatchedAt?.slice(0, 10) ?? "",
+        );
       }
-      const remaining = isInternalPO && dispatchedLines.length > 0
-        ? dispatchedLines.map((line) => {
-          const poItem = selectedPO.items.find((item) => item.itemCode === line.itemCode);
-          return {
-            itemCode: line.itemCode ?? poItem?.itemCode ?? "",
-            itemName: line.itemName ?? poItem?.itemName ?? "",
-            dispatchLineId: line.dispatchLineId,
-            quantity: String(line.quantity),
-            unitCost: String(line.unitCost ?? poItem?.unitCost ?? ""),
-            sellingPrice: String(line.sellingPrice ?? poItem?.sellingPrice ?? ""),
-            batchNo: "",
-            expiryDate: line.expiryDate?.slice(0, 10) ?? "",
-          };
-        })
-        : selectedPO.items
-          .filter((i) => (i.quantity ?? 0) - (i.receivedQuantity ?? 0) > 0)
-          .map((i) => ({
-            itemCode: i.itemCode ?? "",
-            itemName: i.itemName ?? "",
-            quantity: String((i.quantity ?? 0) - (i.receivedQuantity ?? 0)),
-            unitCost: String(i.unitCost ?? ""),
-            sellingPrice: String(i.sellingPrice ?? ""),
-            batchNo: "",
-            expiryDate: "",
-          }));
+      const remaining =
+        isInternalPO && dispatchedLines.length > 0
+          ? dispatchedLines.map((line) => {
+              const poItem = selectedPO.items.find(
+                (item) => item.itemCode === line.itemCode,
+              );
+              return {
+                itemCode: line.itemCode ?? poItem?.itemCode ?? "",
+                itemName: line.itemName ?? poItem?.itemName ?? "",
+                dispatchLineId: line.dispatchLineId,
+                quantity: String(line.quantity),
+                unitCost: String(line.unitCost ?? poItem?.unitCost ?? ""),
+                sellingPrice: String(
+                  line.sellingPrice ?? poItem?.sellingPrice ?? "",
+                ),
+                batchNo: "",
+                expiryDate: line.expiryDate?.slice(0, 10) ?? "",
+              };
+            })
+          : selectedPO.items
+              .filter((i) => (i.quantity ?? 0) - (i.receivedQuantity ?? 0) > 0)
+              .map((i) => ({
+                itemCode: i.itemCode ?? "",
+                itemName: i.itemName ?? "",
+                quantity: String((i.quantity ?? 0) - (i.receivedQuantity ?? 0)),
+                unitCost: String(i.unitCost ?? ""),
+                sellingPrice: String(i.sellingPrice ?? ""),
+                batchNo: "",
+                expiryDate: "",
+              }));
       replace(remaining);
-      if (isInternalPO && selectedPO.destinationWarehouseCode) form.setValue("warehouseCode", selectedPO.destinationWarehouseCode);
+      if (isInternalPO && selectedPO.destinationWarehouseCode)
+        form.setValue("warehouseCode", selectedPO.destinationWarehouseCode);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPO, isInternalPO, linkedTransfer]);
@@ -175,95 +253,297 @@ function CreateGrnDialog({
       toast.error("PO, branch, and warehouse are required.");
       return;
     }
-    if (isInternalPO && transferQuery.isError) { toast.error("Dispatch details could not be loaded. Please retry before posting the GRN."); return; }
-    if (isInternalPO && !internalDispatchCompleted) { toast.error("Central Warehouse has not dispatched this PO yet."); return; }
-    if (isInternalPO && v.items.some((item) => !item.dispatchLineId)) { toast.error("Dispatch line details are unavailable. Refresh the page and select the PO again."); return; }
+    if (isInternalPO && transferQuery.isError) {
+      toast.error(
+        "Dispatch details could not be loaded. Please retry before posting the GRN.",
+      );
+      return;
+    }
+    if (isInternalPO && !internalDispatchCompleted) {
+      toast.error("Central Warehouse has not dispatched this PO yet.");
+      return;
+    }
+    if (isInternalPO && v.items.some((item) => !item.dispatchLineId)) {
+      toast.error(
+        "Dispatch line details are unavailable. Refresh the page and select the PO again.",
+      );
+      return;
+    }
     let hasSellingPriceError = false;
-    v.items.forEach((item, index) => { if (!item.sellingPrice || !Number.isFinite(Number(item.sellingPrice)) || Number(item.sellingPrice) <= 0) { form.setError(`items.${index}.sellingPrice`, { message: "Selling price is required and must be greater than zero." }); hasSellingPriceError = true; } });
-    if (hasSellingPriceError) { toast.error("Enter a valid selling price for every GRN item."); return; }
-    const items = v.items.filter((i) => i.itemCode && i.quantity && i.unitCost).map((i) => ({
-      itemCode: i.itemCode,
-      ...(isInternalPO ? { dispatchLineId: i.dispatchLineId } : {}),
-      quantity: Number(i.quantity),
-      unitCost: Number(i.unitCost),
-      sellingPrice: Number(i.sellingPrice),
-      batchNo: i.batchNo || null,
-      expiryDate: i.expiryDate || null,
-    }));
+    v.items.forEach((item, index) => {
+      if (
+        !item.sellingPrice ||
+        !Number.isFinite(Number(item.sellingPrice)) ||
+        Number(item.sellingPrice) <= 0
+      ) {
+        form.setError(`items.${index}.sellingPrice`, {
+          message: "Selling price is required and must be greater than zero.",
+        });
+        hasSellingPriceError = true;
+      }
+    });
+    if (hasSellingPriceError) {
+      toast.error("Enter a valid selling price for every GRN item.");
+      return;
+    }
+    const items = v.items
+      .filter((i) => i.itemCode && i.quantity && i.unitCost)
+      .map((i) => ({
+        itemCode: i.itemCode,
+        ...(isInternalPO ? { dispatchLineId: i.dispatchLineId } : {}),
+        quantity: Number(i.quantity),
+        unitCost: Number(i.unitCost),
+        sellingPrice: Number(i.sellingPrice),
+        batchNo: i.batchNo || null,
+        expiryDate: i.expiryDate || null,
+      }));
     if (items.length === 0) {
       toast.error("No items to receive.");
       return;
     }
     createM.mutate(
-      { grnNo: null, poNo: v.poNo, branchCode: v.branchCode, warehouseCode: v.warehouseCode, invoiceNo: v.invoiceNo || null, invoiceDate: v.invoiceDate || null, remarks: v.remarks || null, items },
+      {
+        grnNo: null,
+        poNo: v.poNo,
+        branchCode: v.branchCode,
+        warehouseCode: v.warehouseCode,
+        invoiceNo: v.invoiceNo || null,
+        invoiceDate: v.invoiceDate || null,
+        remarks: v.remarks || null,
+        items,
+      },
       {
         onSuccess: (saved) => {
-          toast.success("GRN posted and batch selling prices saved.", { description: saved.items.map((item, index) => `${item.itemCode}: ${formatMoney(item.sellingPrice ?? Number(v.items[index]?.sellingPrice || 0))}`).join(" · ") });
+          toast.success("GRN posted and batch selling prices saved.", {
+            description: saved.items
+              .map(
+                (item, index) =>
+                  `${item.itemCode}: ${formatMoney(item.sellingPrice ?? Number(v.items[index]?.sellingPrice || 0))}`,
+              )
+              .join(" · "),
+          });
           onOpenChange(false);
-          form.reset({ poNo: "", branchCode: defaultBranch ?? "", warehouseCode: "", invoiceNo: "", invoiceDate: "", remarks: "", items: [] });
+          form.reset({
+            poNo: "",
+            branchCode: defaultBranch ?? "",
+            warehouseCode: "",
+            invoiceNo: "",
+            invoiceDate: "",
+            remarks: "",
+            items: [],
+          });
         },
         onError: (error: ApiError) => {
-          if (error.status === 409 && /must dispatch/i.test(error.message)) toast.error("Central Warehouse has not dispatched this PO yet.");
-          if (error.status === 409 && /selected destination warehouse/i.test(error.message)) { if (selectedPO?.destinationWarehouseCode) form.setValue("warehouseCode", selectedPO.destinationWarehouseCode); toast.error("This Internal PO must be received into its selected destination warehouse."); }
-          if (error.status === 400 && /selling\s*price/i.test([error.message, ...(error.errors ?? [])].join(" "))) {
-            const validationText = [error.message, ...(error.errors ?? [])].join(" ");
-            const itemIndexes = [...validationText.matchAll(/items(?:\.|\[)(\d+)/gi)].map((match) => Number(match[1]));
-            const indexesToMark = itemIndexes.length > 0 ? [...new Set(itemIndexes)] : v.items.map((_, index) => index);
-            indexesToMark.forEach((index) => form.setError(`items.${index}.sellingPrice`, { message: "Enter a valid selling price." }));
+          if (error.status === 409 && /must dispatch/i.test(error.message))
+            toast.error("Central Warehouse has not dispatched this PO yet.");
+          if (
+            error.status === 409 &&
+            /selected destination warehouse/i.test(error.message)
+          ) {
+            if (selectedPO?.destinationWarehouseCode)
+              form.setValue(
+                "warehouseCode",
+                selectedPO.destinationWarehouseCode,
+              );
+            toast.error(
+              "This Internal PO must be received into its selected destination warehouse.",
+            );
+          }
+          const errorMessages = Array.isArray(error.errors)
+            ? error.errors.map(String)
+            : [];
+          if (
+            error.status === 400 &&
+            /selling\s*price/i.test([error.message, ...errorMessages].join(" "))
+          ) {
+            const validationText = [error.message, ...errorMessages].join(" ");
+            const itemIndexes = [
+              ...validationText.matchAll(/items(?:\.|\[)(\d+)/gi),
+            ].map((match) => Number(match[1]));
+            const indexesToMark =
+              itemIndexes.length > 0
+                ? [...new Set(itemIndexes)]
+                : v.items.map((_, index) => index);
+            indexesToMark.forEach((index) =>
+              form.setError(`items.${index}.sellingPrice`, {
+                message: "Enter a valid selling price.",
+              }),
+            );
           }
         },
-      }
+      },
     );
   });
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="New GRN" description="Select a purchase order to auto-fill outstanding lines." onSubmit={onSubmit} isSubmitting={createM.isPending} submitLabel="Post GRN" className="sm:max-w-4xl">
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="New GRN"
+      description="Select a purchase order to auto-fill outstanding lines."
+      onSubmit={onSubmit}
+      isSubmitting={createM.isPending}
+      submitLabel="Post GRN"
+      className="sm:max-w-4xl"
+    >
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Purchase Order *</Label>
-          <Select value={form.watch("poNo")} onValueChange={(v) => form.setValue("poNo", v)}>
-            <SelectTrigger><SelectValue placeholder="Select PO" /></SelectTrigger>
+          <Select
+            value={form.watch("poNo")}
+            onValueChange={(v) => form.setValue("poNo", v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select PO" />
+            </SelectTrigger>
             <SelectContent>
               {receivablePOs.map((po) => {
-                const internal = !!po.isInternalTransfer && !!po.sourceWarehouseCode && po.vendorId == null;
-                return <SelectItem key={po.poNo} value={po.poNo}>{po.poNo} — {internal ? `Central Warehouse: ${po.sourceWarehouseName || po.sourceWarehouseCode}` : po.vendorName}</SelectItem>;
+                const internal =
+                  !!po.isInternalTransfer &&
+                  !!po.sourceWarehouseCode &&
+                  po.vendorId == null;
+                return (
+                  <SelectItem key={po.poNo} value={po.poNo}>
+                    {po.poNo} —{" "}
+                    {internal
+                      ? `Central Warehouse: ${po.sourceWarehouseName || po.sourceWarehouseCode}`
+                      : po.vendorName}
+                  </SelectItem>
+                );
               })}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Warehouse *</Label>
-          <Select value={form.watch("warehouseCode")} onValueChange={(v) => form.setValue("warehouseCode", v)} disabled={isInternalPO}>
-            <SelectTrigger><SelectValue placeholder="Select warehouse" /></SelectTrigger>
+          <Select
+            value={form.watch("warehouseCode")}
+            onValueChange={(v) => form.setValue("warehouseCode", v)}
+            disabled={isInternalPO}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select warehouse" />
+            </SelectTrigger>
             <SelectContent>
-              {warehouses?.filter((warehouse) => !isInternalPO || warehouse.warehouseCode === selectedPO?.destinationWarehouseCode).map((w) => <SelectItem key={w.warehouseCode} value={w.warehouseCode}>{w.warehouseName} ({w.warehouseCode})</SelectItem>)}
+              {warehouses
+                ?.filter(
+                  (warehouse) =>
+                    !isInternalPO ||
+                    warehouse.warehouseCode ===
+                      selectedPO?.destinationWarehouseCode,
+                )
+                .map((w) => (
+                  <SelectItem key={w.warehouseCode} value={w.warehouseCode}>
+                    {w.warehouseName} ({w.warehouseCode})
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5"><Label>Invoice No.</Label><Input {...form.register("invoiceNo")} /></div>
-        <div className="space-y-1.5"><Label>Invoice Date</Label><Input type="date" {...form.register("invoiceDate")} /></div>
-        <div className="col-span-2 space-y-1.5"><Label>Remarks</Label><Input {...form.register("remarks")} /></div>
+        <div className="space-y-1.5">
+          <Label>Invoice No.</Label>
+          <Input {...form.register("invoiceNo")} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Invoice Date</Label>
+          <Input type="date" {...form.register("invoiceDate")} />
+        </div>
+        <div className="col-span-2 space-y-1.5">
+          <Label>Remarks</Label>
+          <Input {...form.register("remarks")} />
+        </div>
       </div>
 
-      {isInternalPO && <div className={`rounded-lg border p-3 text-sm ${internalDispatchCompleted ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`}><p className="font-medium">Central Warehouse: {selectedPO.sourceWarehouseName || selectedPO.sourceWarehouseCode}</p><p className="mt-1 text-muted-foreground">{transferQuery.isLoading ? "Loading dispatch details..." : transferQuery.isError ? "Dispatch details could not be loaded. Please retry or contact the administrator." : internalDispatchCompleted ? "Central dispatch completed. GRN can now be posted." : "Central Warehouse has not dispatched this PO yet."}</p></div>}
+      {isInternalPO && (
+        <div
+          className={`rounded-lg border p-3 text-sm ${internalDispatchCompleted ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`}
+        >
+          <p className="font-medium">
+            Central Warehouse:{" "}
+            {selectedPO.sourceWarehouseName || selectedPO.sourceWarehouseCode}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {transferQuery.isLoading
+              ? "Loading dispatch details..."
+              : transferQuery.isError
+                ? "Dispatch details could not be loaded. Please retry or contact the administrator."
+                : internalDispatchCompleted
+                  ? "Central dispatch completed. GRN can now be posted."
+                  : "Central Warehouse has not dispatched this PO yet."}
+          </p>
+        </div>
+      )}
 
       {fields.length > 0 && (
         <div className="space-y-2">
           <Label>Items to Receive</Label>
           <div className="space-y-2">
             {fields.map((field, idx) => (
-              <div key={field.id} className="grid grid-cols-1 items-start gap-2 rounded-lg border border-border p-3 sm:grid-cols-12">
+              <div
+                key={field.id}
+                className="grid grid-cols-1 items-start gap-2 rounded-lg border border-border p-3 sm:grid-cols-12"
+              >
                 <div className="text-xs sm:col-span-2">
                   <p className="mb-1 text-[11px] text-muted-foreground">Item</p>
-                  <p className="font-medium text-foreground truncate">{field.itemName || field.itemCode}</p>
+                  <p className="font-medium text-foreground truncate">
+                    {field.itemName || field.itemCode}
+                  </p>
                   <p className="text-muted-foreground">{field.itemCode}</p>
-                  {field.dispatchLineId && <p className="text-muted-foreground">Dispatch line #{field.dispatchLineId}</p>}
+                  {field.dispatchLineId && (
+                    <p className="text-muted-foreground">
+                      Dispatch line #{field.dispatchLineId}
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Receive Qty *</Label><Input type="number" min="1" step="1" {...form.register(`items.${idx}.quantity` as const)} /></div>
-                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Unit Cost *</Label><Input type="number" step="0.01" {...form.register(`items.${idx}.unitCost` as const)} /></div>
-                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Selling Price *</Label><Input type="number" min="0.01" step="0.01" aria-invalid={!!form.formState.errors.items?.[idx]?.sellingPrice} {...form.register(`items.${idx}.sellingPrice` as const)} />{form.formState.errors.items?.[idx]?.sellingPrice && <p className="mt-1 text-xs text-destructive">{form.formState.errors.items[idx]?.sellingPrice?.message}</p>}</div>
-                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Batch No.</Label><Input placeholder="Auto-generated" {...form.register(`items.${idx}.batchNo` as const)} /></div>
-                <div className="space-y-1 sm:col-span-2"><Label className="text-[11px]">Expiry Date</Label><Input type="date" aria-label={`Expiry date for ${field.itemName || field.itemCode}`} {...form.register(`items.${idx}.expiryDate` as const)} /></div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px]">Receive Qty *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    {...form.register(`items.${idx}.quantity` as const)}
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px]">Unit Cost *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...form.register(`items.${idx}.unitCost` as const)}
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px]">Selling Price *</Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    aria-invalid={
+                      !!form.formState.errors.items?.[idx]?.sellingPrice
+                    }
+                    {...form.register(`items.${idx}.sellingPrice` as const)}
+                  />
+                  {form.formState.errors.items?.[idx]?.sellingPrice && (
+                    <p className="mt-1 text-xs text-destructive">
+                      {form.formState.errors.items[idx]?.sellingPrice?.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px]">Batch No.</Label>
+                  <Input
+                    placeholder="Auto-generated"
+                    {...form.register(`items.${idx}.batchNo` as const)}
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px]">Expiry Date</Label>
+                  <Input
+                    type="date"
+                    aria-label={`Expiry date for ${field.itemName || field.itemCode}`}
+                    {...form.register(`items.${idx}.expiryDate` as const)}
+                  />
+                </div>
               </div>
             ))}
           </div>

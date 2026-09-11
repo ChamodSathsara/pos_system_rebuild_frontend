@@ -7,7 +7,7 @@ import process from "node:process";
 const projectRoot = process.cwd();
 const installedElectron = path.join(projectRoot, "node_modules", "electron", "dist");
 const packagedElectron = path.join(projectRoot, "release", "win-unpacked");
-const packagedExecutable = path.join(packagedElectron, "Gestetner POS.exe");
+const packagedExecutable = path.join(packagedElectron, "Vantage POS.exe");
 const builderCli = path.join(projectRoot, "node_modules", "electron-builder", "cli.js");
 
 async function exists(target) {
@@ -41,7 +41,7 @@ try {
   } else if (await exists(packagedExecutable)) {
     temporaryRuntime = await mkdtemp(path.join(os.tmpdir(), "gestetner-electron-runtime-"));
     await cp(packagedElectron, temporaryRuntime, { recursive: true });
-    await rename(path.join(temporaryRuntime, "Gestetner POS.exe"), path.join(temporaryRuntime, "electron.exe"));
+    await rename(path.join(temporaryRuntime, "Vantage POS.exe"), path.join(temporaryRuntime, "electron.exe"));
     console.log("Electron download unavailable; using the existing local Electron runtime.");
     await runBuilder(temporaryRuntime);
   } else {

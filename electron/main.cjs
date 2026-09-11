@@ -202,7 +202,7 @@ async function startPackagedNextServer() {
   nextServer.stderr?.on("data", (chunk) => console.error(`[next] ${chunk}`));
   nextServer.once("exit", (code) => {
     if (!app.isQuitting && code !== 0) {
-      dialog.showErrorBox("Gestetner POS", "The application server stopped unexpectedly. Please restart Gestetner POS.");
+      dialog.showErrorBox("Vantage POS", "The application server stopped unexpectedly. Please restart Vantage POS.");
     }
   });
 
@@ -213,7 +213,7 @@ async function startPackagedNextServer() {
 
 function createWindow(appUrl) {
   mainWindow = new BrowserWindow({
-    title: "Gestetner POS",
+    title: "Vantage POS",
     width: 1440,
     height: 900,
     minWidth: 1024,
@@ -263,7 +263,7 @@ app.whenReady().then(async () => {
     if (!app.isPackaged) await waitForServer(appUrl);
     createWindow(appUrl);
   } catch (error) {
-    dialog.showErrorBox("Gestetner POS could not start", error instanceof Error ? error.message : String(error));
+    dialog.showErrorBox("Vantage POS could not start", error instanceof Error ? error.message : String(error));
     app.quit();
   }
 });

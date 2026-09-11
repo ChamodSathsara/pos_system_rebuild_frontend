@@ -70,8 +70,8 @@
   },
   "build": {
     "appId": "com.gestetner.pos",
-    "productName": "Gestetner POS",
-    "artifactName": "Gestetner-POS-Final-Update-chamod-${version}.${ext}",
+    "productName": "Vantage POS",
+    "artifactName": "Vantage-POS-Setup-${version}.${ext}",
     "asar": true,
     "npmRebuild": false,
     "directories": {
@@ -115,8 +115,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Gestetner POS",
-      "uninstallDisplayName": "Gestetner POS"
+      "shortcutName": "Vantage POS",
+      "uninstallDisplayName": "Vantage POS"
     }
   }
 }
