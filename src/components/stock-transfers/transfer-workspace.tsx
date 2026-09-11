@@ -109,6 +109,10 @@ export function TransferWorkspace({
       : []
     : (allWarehouses ?? []);
   const { data: products } = useProducts({ isActive: true });
+  const productNameByCode = useMemo(
+    () => new Map((products ?? []).map((product) => [product.itemCode, product.itemName])),
+    [products],
+  );
   const central = warehouses.filter((w) => w.isCentralWarehouse);
   const ownWarehouses = warehouses.filter(
     (w) =>
@@ -474,6 +478,7 @@ export function TransferWorkspace({
       {dispatchFor && (
         <DispatchDialog
           transfer={dispatchFor}
+          productNameByCode={productNameByCode}
           onClose={() => setDispatchFor(null)}
         />
       )}
@@ -486,6 +491,7 @@ export function TransferWorkspace({
       )}
       <TransferDetailSheet
         transfer={detailFor}
+        productNameByCode={productNameByCode}
         onClose={() => setDetailFor(null)}
       />
     </div>
@@ -494,9 +500,11 @@ export function TransferWorkspace({
 
 function TransferDetailSheet({
   transfer,
+  productNameByCode,
   onClose,
 }: {
   transfer: StockTransfer | null;
+  productNameByCode: Map<string, string>;
   onClose: () => void;
 }) {
   const total =
@@ -557,7 +565,7 @@ function TransferDetailSheet({
                   >
                     <div className="flex items-center justify-between">
                       <p className="font-medium">
-                        {line.itemName || line.itemCode}
+                        {line.itemName || productNameByCode.get(line.itemCode) || line.itemCode}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {line.itemCode}
@@ -1175,9 +1183,11 @@ function AcceptDialog({
 
 function DispatchDialog({
   transfer,
+  productNameByCode,
   onClose,
 }: {
   transfer: StockTransfer;
+  productNameByCode: Map<string, string>;
   onClose: () => void;
 }) {
   const mutation = useDispatchStockTransfer();
@@ -1314,7 +1324,7 @@ function DispatchDialog({
         </div>
         {lines.map((line, i) => (
           <div key={i} className="grid grid-cols-[1fr_1fr_120px_auto] gap-2">
-            <Input value={line.itemCode} disabled />
+            <Input value={productNameByCode.get(line.itemCode) || line.itemCode} disabled />
             <Select
               value={line.batchId}
               onOpenChange={(o) => o && void load(line)}

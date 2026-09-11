@@ -19,12 +19,14 @@ import { useAuthStore } from "@/store/auth-store";
 import { initialsOf } from "@/lib/format";
 import { MapPin, Warehouse } from "lucide-react";
 import { useCashierShiftSession } from "./cashier-shift-guard";
+import { useWarehouse } from "@/hooks/use-organization";
 
 export function Topbar({ title }: { title?: string }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { requestLogout } = useCashierShiftSession();
+  const assignedWarehouse = useWarehouse(user?.roleName === "InventoryClerk" ? user.warehouseCode : undefined);
 
   const handleLogout = async () => {
     if (requestLogout) {
@@ -61,7 +63,7 @@ export function Topbar({ title }: { title?: string }) {
         {user?.roleName === "InventoryClerk" && user.warehouseCode && (
           <Badge variant="outline" className="hidden gap-1 sm:inline-flex">
             <Warehouse className="h-3 w-3" />
-            {user.warehouseCode}
+            {assignedWarehouse.data?.warehouseName || user.warehouseCode}
           </Badge>
         )}
         <Badge variant="default" className="hidden sm:inline-flex">

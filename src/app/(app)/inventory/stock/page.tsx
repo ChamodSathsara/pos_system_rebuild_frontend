@@ -49,13 +49,17 @@ export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean
   const lowStockData = filterScope(lowStockQuery.data ?? []);
   const { isLoading, isError, refetch } = stockQuery;
   const lowStockIds = useMemo(() => new Set((lowStockData ?? []).map((stock) => stock.stockId)), [lowStockData]);
+  const warehouseNameByCode = useMemo(
+    () => new Map(warehouseList.map((warehouse) => [warehouse.warehouseCode, warehouse.warehouseName])),
+    [warehouseList],
+  );
 
   const columns = useMemo<ColumnDef<StockInventory>[]>(
     () => [
       { accessorKey: "itemCode", header: "Item Code" },
       { accessorKey: "itemName", header: "Item", cell: ({ row }) => row.original.itemName || "—" },
       { accessorKey: "branchCode", header: "Branch" },
-      { accessorKey: "warehouseCode", header: "Warehouse" },
+      { accessorKey: "warehouseCode", header: "Warehouse", cell: ({ row }) => warehouseNameByCode.get(row.original.warehouseCode) || row.original.warehouseCode },
       {
         accessorKey: "currentQty",
         header: "Qty on Hand",
@@ -87,7 +91,7 @@ export function StockLevelsPage({ centralOnly = false }: { centralOnly?: boolean
         ),
       },
     ],
-    [lowStockIds]
+    [lowStockIds, warehouseNameByCode]
   );
 
   if (isInventoryClerk && !assignedWarehouseCode) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6"><h1 className="text-lg font-semibold text-destructive">Main Warehouse is not assigned.</h1><p className="mt-1 text-sm text-muted-foreground">Contact Admin. Warehouse actions are unavailable.</p></div>;
