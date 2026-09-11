@@ -274,16 +274,17 @@ function CreateGrnDialog({
       if (
         !item.sellingPrice ||
         !Number.isFinite(Number(item.sellingPrice)) ||
-        Number(item.sellingPrice) <= 0
+        Number(item.sellingPrice) <= 0 ||
+        Number(item.sellingPrice) < Number(item.unitCost)
       ) {
         form.setError(`items.${index}.sellingPrice`, {
-          message: "Selling price is required and must be greater than zero.",
+          message: "Selling price is required, must be greater than zero, and cannot be lower than unit cost.",
         });
         hasSellingPriceError = true;
       }
     });
     if (hasSellingPriceError) {
-      toast.error("Enter a valid selling price for every GRN item.");
+      toast.error("Selling price cannot be lower than the unit cost.");
       return;
     }
     const items = v.items

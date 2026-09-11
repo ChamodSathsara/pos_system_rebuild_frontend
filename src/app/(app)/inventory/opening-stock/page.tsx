@@ -47,6 +47,7 @@ import { isBranchScoped } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { ItemGroup, UnitOfMeasure, type Product } from "@/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface FormValues {
   itemCode: string;
@@ -224,6 +225,11 @@ export default function OpeningStockPage() {
   };
 
   const onSubmit = form.handleSubmit((values) => {
+    if (Number(values.sellingPrice) < Number(values.unitCost)) {
+      form.setError("sellingPrice", { message: "Selling price cannot be lower than the unit cost." });
+      toast.error("Selling price cannot be lower than the unit cost.");
+      return;
+    }
     createOpeningStock.mutate(
       {
         itemCode: values.itemCode,
@@ -459,8 +465,7 @@ export default function OpeningStockPage() {
                       {...form.register("sellingPrice", {
                         required: "Selling price is required.",
                         validate: (value) =>
-                          Number(value) > 0 ||
-                          "Selling price must be greater than 0.",
+                          Number(value) <= 0 ? "Selling price must be greater than 0." : Number(value) >= Number(form.getValues("unitCost")) || "Selling price cannot be lower than the unit cost.",
                       })}
                     />
                     {form.formState.errors.sellingPrice && (
@@ -696,6 +701,11 @@ function CreateProductDialog({
   });
 
   const submit = form.handleSubmit((values) => {
+    if (values.costPrice !== "" && values.sellingPrice !== "" && Number(values.sellingPrice) < Number(values.costPrice)) {
+      form.setError("sellingPrice", { message: "Selling price cannot be lower than the cost price." });
+      toast.error("Selling price cannot be lower than the cost price.");
+      return;
+    }
     createProduct.mutate(
       {
         itemCode: null,
@@ -914,9 +924,7 @@ function CreateProductDialog({
               step="0.01"
               {...form.register("sellingPrice", {
                 validate: (value) =>
-                  value === "" ||
-                  Number(value) >= 0 ||
-                  "Selling price cannot be negative.",
+                  value === "" || Number(value) >= Number(form.getValues("costPrice") || 0) || "Selling price cannot be lower than the cost price.",
               })}
             />
             {form.formState.errors.sellingPrice && (

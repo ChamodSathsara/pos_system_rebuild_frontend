@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCreateSale, usePosTerminalItems, useSaleInvoice } from "@/hooks/use-sale";
-import { useCustomer, useCreateCustomer } from "@/hooks/use-party";
+import { useCustomer, useCreateCustomer, useCustomers } from "@/hooks/use-party";
 import { useAuthStore } from "@/store/auth-store";
 import { useCategories } from "@/hooks/use-catalog";
 import { useWarehouses } from "@/hooks/use-organization";
@@ -73,6 +73,8 @@ export default function PosTerminalPage() {
   const [warehouseCode, setWarehouseCode] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerCode, setCustomerCode] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerMatches, setShowCustomerMatches] = useState(false);
   const [billDiscount, setBillDiscount] = useState(0);
   const [payments, setPayments] = useState<PaymentLine[]>([]);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -105,6 +107,16 @@ export default function PosTerminalPage() {
   });
   const results = (terminalItems ?? []).filter((item) => item.isAvailable && item.availableQty > 0);
   const { data: customer } = useCustomer(customerCode || undefined);
+  const { data: customers } = useCustomers();
+  const customerMatches = (customers ?? []).filter((candidate) => {
+    const search = customerSearch.trim().toLowerCase();
+    return !!search && candidate.isActive && (candidate.customerCode.toLowerCase().includes(search) || candidate.customerName.toLowerCase().includes(search));
+  }).slice(0, 8);
+  const selectCustomer = (selectedCustomer: { customerCode: string; customerName: string }) => {
+    setCustomerCode(selectedCustomer.customerCode);
+    setCustomerSearch(`${selectedCustomer.customerName} (${selectedCustomer.customerCode})`);
+    setShowCustomerMatches(false);
+  };
   const createSale = useCreateSale();
 
   const addToCart = (p: PosTerminalItem) => {
@@ -424,13 +436,17 @@ export default function PosTerminalPage() {
           </ScrollArea>
 
           <div className="space-y-2 border-t border-border p-3">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Customer code (optional)"
-                value={customerCode}
-                onChange={(e) => setCustomerCode(e.target.value)}
-                className="h-9"
-              />
+            <div className="flex items-start gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Input
+                  placeholder="Search customer code or name (optional)"
+                  value={customerSearch}
+                  onFocus={() => setShowCustomerMatches(true)}
+                  onChange={(e) => { setCustomerSearch(e.target.value); setCustomerCode(""); setShowCustomerMatches(true); }}
+                  className="h-9"
+                />
+                {showCustomerMatches && customerMatches.length > 0 && <div className="absolute bottom-10 z-20 max-h-52 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-md">{customerMatches.map((candidate) => <button key={candidate.customerCode} type="button" className="w-full rounded px-2 py-2 text-left text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(candidate)}><span className="block font-medium">{candidate.customerName}</span><span className="text-xs text-muted-foreground">{candidate.customerCode}{candidate.mobile ? ` · ${candidate.mobile}` : ""}</span></button>)}</div>}
+              </div>
               <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => setCustomerDialogOpen(true)} title="New customer">
                 <UserPlus className="h-4 w-4" />
               </Button>
@@ -547,7 +563,7 @@ export default function PosTerminalPage() {
         </DialogContent>
       </Dialog>
 
-      <NewCustomerDialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen} onCreated={(code) => setCustomerCode(code)} />
+      <NewCustomerDialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen} onCreated={(code) => { const created = customers?.find((item) => item.customerCode === code); setCustomerCode(code); setCustomerSearch(created ? `${created.customerName} (${code})` : code); }} />
       <ReceiptDialog invoiceNo={lastInvoice} tendered={lastPaymentSummary.tendered} change={lastPaymentSummary.change} onClose={() => setLastInvoice(null)} />
     </div>
   );

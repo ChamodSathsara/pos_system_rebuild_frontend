@@ -9,12 +9,17 @@ import type {
 } from "@/types";
 
 export const pq = {
+  customers: ["customers"] as const,
   customer: (code: string) => ["customers", code] as const,
   vendors: (isActive?: boolean) => ["vendors", isActive ?? "all"] as const,
   vendor: (id: number) => ["vendors", id] as const,
   ledgers: ["vendor-ledgers"] as const,
   ledgerByVendor: (vendorId: number) => ["vendor-ledgers", "vendor", vendorId] as const,
 };
+
+export function useCustomers() {
+  return useQuery({ queryKey: pq.customers, queryFn: () => customersApi.list() });
+}
 
 export function useCustomer(customerCode?: string) {
   return useQuery({

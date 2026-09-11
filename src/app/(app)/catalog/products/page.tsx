@@ -58,7 +58,10 @@ const schema = z.object({
   ),
   taxCode: z.string().optional(),
   isActive: z.boolean(),
-});
+}).refine(
+  (values) => values.costPrice === undefined || values.sellingPrice === undefined || values.sellingPrice >= values.costPrice,
+  { path: ["sellingPrice"], message: "Selling price cannot be lower than the cost price." }
+);
 type FormInput = z.input<typeof schema>;
 type FormValues = z.output<typeof schema>;
 
@@ -321,7 +324,8 @@ export default function ProductsPage() {
           </div>
           <div className="space-y-1.5">
             <Label>Selling Price</Label>
-            <Input type="number" step="0.01" {...form.register("sellingPrice")} />
+            <Input type="number" min="0" step="0.01" {...form.register("sellingPrice")} />
+            {form.formState.errors.sellingPrice && <p className="text-xs text-destructive">{form.formState.errors.sellingPrice.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Reorder Level *</Label>

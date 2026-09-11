@@ -11,6 +11,7 @@ import type {
 } from "@/types";
 
 export const customersApi = {
+  list: () => api.get<Customer[]>("/api/customers"),
   create: (body: CreateCustomerRequest) => api.post<Customer>("/api/customers", body),
   get: (customerCode: string) => api.get<Customer>(`/api/customers/${customerCode}`),
 };
