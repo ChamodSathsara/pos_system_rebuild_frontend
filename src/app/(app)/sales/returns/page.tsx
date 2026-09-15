@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCreateSaleReturn, useSale, useSaleReturns } from "@/hooks/use-sale";
+import { useCreateSaleReturn, useSale, useSaleReturns, useSales } from "@/hooks/use-sale";
 import { useSystemUsers } from "@/hooks/use-security";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { SaleReturn } from "@/types";
@@ -53,7 +53,9 @@ export default function SaleReturnsPage() {
 function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const [lookupInvoice, setLookupInvoice] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showInvoices, setShowInvoices] = useState(false);
   const { data: sale, isLoading, isError } = useSale(searchTerm || undefined);
+  const { data: completedSales, isLoading: invoicesLoading } = useSales({ status: "Completed" });
   const [selected, setSelected] = useState<Record<string, string>>({}); // itemCode -> qty string
   const createM = useCreateSaleReturn();
   const form = useForm({ defaultValues: { reason: "" } });
@@ -62,6 +64,16 @@ function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     if (!lookupInvoice) return;
     setSearchTerm(lookupInvoice.trim());
     setSelected({});
+  };
+  const invoiceMatches = (completedSales ?? []).filter((completedSale) => {
+    const term = lookupInvoice.trim().toLowerCase();
+    return !!term && (completedSale.invoiceNo.toLowerCase().includes(term) || completedSale.customerName?.toLowerCase().includes(term));
+  }).slice(0, 10);
+  const selectInvoice = (invoiceNo: string) => {
+    setLookupInvoice(invoiceNo);
+    setSearchTerm(invoiceNo);
+    setSelected({});
+    setShowInvoices(false);
   };
 
   const toggleItem = (itemCode: string, maxQty: number) => {
@@ -75,6 +87,11 @@ function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   const submit = form.handleSubmit((v) => {
     if (!sale) return;
+    if (!v.reason.trim()) {
+      form.setError("reason", { message: "Return reason is required." });
+      toast.error("Enter a reason for this sale return.");
+      return;
+    }
     const items = Object.entries(selected)
       .filter(([, qty]) => Number(qty) > 0)
       .map(([itemCode, qty]) => ({ itemCode, quantity: Number(qty) }));
@@ -83,7 +100,7 @@ function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       return;
     }
     createM.mutate(
-      { returnNo: null, invoiceNo: sale.invoiceNo, reason: v.reason || null, items },
+      { returnNo: null, invoiceNo: sale.invoiceNo, reason: v.reason.trim(), items },
       {
         onSuccess: () => {
           onOpenChange(false);
@@ -98,8 +115,11 @@ function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title="New Sale Return" onSubmit={submit} isSubmitting={createM.isPending} submitLabel="Process Return" className="sm:max-w-lg">
-      <div className="flex gap-2">
-        <Input placeholder="Invoice number, e.g. INV000001" value={lookupInvoice} onChange={(e) => setLookupInvoice(e.target.value)} />
+      <div className="relative flex gap-2">
+        <div className="relative min-w-0 flex-1">
+        <Input placeholder="Search invoice number or customer" value={lookupInvoice} onFocus={() => setShowInvoices(true)} onChange={(e) => { setLookupInvoice(e.target.value); setShowInvoices(true); }} />
+        {showInvoices && lookupInvoice.trim() && <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-md">{invoicesLoading ? <p className="px-2 py-3 text-sm text-muted-foreground">Loading invoices...</p> : invoiceMatches.length > 0 ? invoiceMatches.map((completedSale) => <button key={completedSale.invoiceNo} type="button" className="w-full rounded px-2 py-2 text-left text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => selectInvoice(completedSale.invoiceNo)}><span className="block font-medium">{completedSale.invoiceNo}</span><span className="text-xs text-muted-foreground">{completedSale.customerName || "Walk-in"} · {formatMoney(completedSale.totalAmount)}</span></button>) : <p className="px-2 py-3 text-sm text-muted-foreground">No completed invoices found.</p>}</div>}
+        </div>
         <Button type="button" variant="outline" onClick={doLookup}><Search className="h-4 w-4" /> Find</Button>
       </div>
 
@@ -131,8 +151,9 @@ function CreateReturnDialog({ open, onOpenChange }: { open: boolean; onOpenChang
             ))}
           </div>
           <div className="space-y-1.5">
-            <Label>Reason</Label>
-            <Textarea rows={2} {...form.register("reason")} />
+            <Label>Reason *</Label>
+            <Textarea rows={2} {...form.register("reason", { validate: (value) => value.trim().length > 0 || "Return reason is required." })} />
+            {form.formState.errors.reason && <p className="text-xs text-destructive">{form.formState.errors.reason.message}</p>}
           </div>
         </div>
       )}
