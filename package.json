@@ -12,7 +12,7 @@
     "lint": "eslint",
     "electron:launch": "electron electron/main.cjs",
     "electron:dev": "concurrently --kill-others-on-fail \"npm:dev\" \"npm:electron:launch\"",
-    "electron:prepare": "node scripts/prepare-electron.mjs",
+    "electron:prepare": "node scripts/create-icon.mjs && node scripts/prepare-electron.mjs",
     "electron:build": "npm run build && npm run electron:prepare && node scripts/build-electron.mjs"
   },
   "dependencies": {
@@ -100,7 +100,7 @@
       }
     ],
     "win": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
