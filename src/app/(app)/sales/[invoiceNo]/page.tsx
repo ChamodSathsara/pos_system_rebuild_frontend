@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useCancelSale, useSale } from "@/hooks/use-sale";
 import { usePayments } from "@/hooks/use-sale";
+import { useSystemUsers } from "@/hooks/use-security";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { getUserFacingError } from "@/lib/errors";
 import { printSaleInvoice } from "@/lib/sale-print";
@@ -23,6 +24,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
   const { invoiceNo } = use(params);
   const { data: sale, isLoading, isError, refetch } = useSale(invoiceNo);
   const { data: payments } = usePayments({ invoiceNo });
+  const { data: users } = useSystemUsers();
   const cancelM = useCancelSale();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -46,6 +48,7 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (isError || !sale) return <ErrorState message="Could not load this sale." onRetry={refetch} />;
+  const cashierName = sale.createdByName || users?.find((user) => user.userCode === sale.createdBy)?.fullName || users?.find((user) => user.userCode === sale.createdBy)?.username || sale.createdBy || "—";
 
   return (
     <div className="space-y-6">
@@ -71,8 +74,9 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Date</p><p className="mt-1 text-sm font-semibold">{formatDateTime(sale.saleDate)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Created By</p><p className="mt-1 text-sm font-semibold">{cashierName}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Total</p><p className="num mt-1 text-sm font-semibold">{formatMoney(sale.totalAmount)}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Paid</p><p className="num mt-1 text-sm font-semibold text-success">{formatMoney(sale.paidAmount)}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Tendered</p><p className="num mt-1 text-sm font-semibold">{formatMoney(sale.tenderedAmount ?? sale.paidAmount)}</p><p className="mt-0.5 text-xs text-muted-foreground">Change {formatMoney(sale.changeAmount)}</p></Card>

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCancelSale, useSales } from "@/hooks/use-sale";
 import { useBranches } from "@/hooks/use-organization";
+import { useSystemUsers } from "@/hooks/use-security";
 import { useEffectiveBranchCode } from "@/store/auth-store";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { Sale, SaleStatus } from "@/types";
@@ -25,6 +26,7 @@ export default function SalesPage() {
   const [status, setStatus] = useState<SaleStatus | "All">("All");
   const { data, isLoading, isError, refetch } = useSales({ branchCode, status: status === "All" ? undefined : status });
   const { data: branches } = useBranches();
+  const { data: users } = useSystemUsers();
   const cancelM = useCancelSale();
   const [cancelling, setCancelling] = useState<Sale | null>(null);
 
@@ -33,6 +35,7 @@ export default function SalesPage() {
       { accessorKey: "invoiceNo", header: "Invoice", cell: ({ row }) => <Link href={`/sales/${row.original.invoiceNo}`} className="font-medium text-primary hover:underline">{row.original.invoiceNo}</Link> },
       { accessorKey: "saleDate", header: "Date", cell: ({ row }) => formatDateTime(row.original.saleDate) },
       { accessorKey: "customerName", header: "Customer", cell: ({ row }) => row.original.customerName || "Walk-in" },
+      { id: "createdBy", header: "Cashier", cell: ({ row }) => row.original.createdByName || users?.find((user) => user.userCode === row.original.createdBy)?.fullName || users?.find((user) => user.userCode === row.original.createdBy)?.username || row.original.createdBy || "—" },
       { accessorKey: "branchCode", header: "Branch", cell: ({ row }) => branches?.find((branch) => branch.branchCode === row.original.branchCode)?.branchName || row.original.branchCode || "—" },
       { accessorKey: "totalAmount", header: "Total", cell: ({ row }) => <span className="num">{formatMoney(row.original.totalAmount)}</span> },
       { accessorKey: "balanceAmount", header: "Balance", cell: ({ row }) => <span className="num">{formatMoney(row.original.balanceAmount)}</span> },
@@ -48,7 +51,7 @@ export default function SalesPage() {
           ) : null,
       },
     ],
-    [branches]
+    [branches, users]
   );
 
   return (

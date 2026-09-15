@@ -28,6 +28,7 @@ export interface Sale {
   changeAmount?: number | null;
   status: SaleStatus;
   createdBy?: string | null;
+  createdByName?: string | null;
   createdAt?: string | null;
   items: SaleItem[];
 }
