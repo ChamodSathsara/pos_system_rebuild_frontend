@@ -45,7 +45,7 @@ export default function DamageItemsPage() {
   const createM = useCreateDamageItem();
   const updateM = useUpdateDamageItem();
 
-  const form = useForm({ defaultValues: { itemCode: "", branchCode: "", warehouseCode: "", quantity: "", costAmount: "", reason: "", damageDate: "" } });
+  const form = useForm({ defaultValues: { itemCode: "", branchCode: "", warehouseCode: "", quantity: "", reason: "", damageDate: "" } });
   const selectedItem = useWatch({ control: form.control, name: "itemCode" });
   const selectedBranch = useWatch({ control: form.control, name: "branchCode" });
   const selectedWarehouse = useWatch({ control: form.control, name: "warehouseCode" });
@@ -55,13 +55,13 @@ export default function DamageItemsPage() {
   const activeWarehouses = (warehouses ?? []).filter((warehouse) => warehouse.isActive && warehouse.branchCode === selectedBranch);
 
   const openCreate = () => {
-    form.reset({ itemCode: "", branchCode: branchCode ?? "", warehouseCode: "", quantity: "", costAmount: "", reason: "", damageDate: "" });
+    form.reset({ itemCode: "", branchCode: branchCode ?? "", warehouseCode: "", quantity: "", reason: "", damageDate: "" });
     setOpen(true);
   };
 
   const onSubmit = form.handleSubmit((v) => {
-    if (!v.itemCode || !v.branchCode || !v.quantity) {
-      toast.error("Item, branch, and quantity are required.");
+    if (!v.itemCode || !v.branchCode || !v.quantity || !v.reason.trim()) {
+      toast.error("Item, branch, quantity, and reason are required.");
       return;
     }
     createM.mutate(
@@ -70,8 +70,8 @@ export default function DamageItemsPage() {
         branchCode: v.branchCode,
         warehouseCode: v.warehouseCode || null,
         quantity: Number(v.quantity),
-        costAmount: v.costAmount ? Number(v.costAmount) : null,
-        reason: v.reason || null,
+        costAmount: null,
+        reason: v.reason.trim(),
         damageDate: v.damageDate || null,
       },
       { onSuccess: () => setOpen(false) }
@@ -170,9 +170,8 @@ export default function DamageItemsPage() {
             </Select>
           </div>
           <div className="space-y-1.5"><Label>Quantity *</Label><Input type="number" step="0.01" {...form.register("quantity")} /></div>
-          <div className="space-y-1.5"><Label>Cost Amount</Label><Input type="number" step="0.01" {...form.register("costAmount")} /></div>
           <div className="space-y-1.5"><Label>Damage Date</Label><Input type="date" {...form.register("damageDate")} /></div>
-          <div className="col-span-2 space-y-1.5"><Label>Reason</Label><Textarea rows={2} {...form.register("reason")} /></div>
+          <div className="col-span-2 space-y-1.5"><Label>Reason *</Label><Textarea rows={2} {...form.register("reason", { validate: (value) => value.trim().length > 0 || "Reason is required." })} />{form.formState.errors.reason && <p className="text-xs text-destructive">{form.formState.errors.reason.message}</p>}</div>
         </div>
       </FormDialog>
     </div>
