@@ -24,6 +24,8 @@ export interface Sale {
   totalAmount?: number | null;
   paidAmount?: number | null;
   balanceAmount?: number | null;
+  tenderedAmount?: number | null;
+  changeAmount?: number | null;
   status: SaleStatus;
   createdBy?: string | null;
   createdAt?: string | null;
@@ -39,7 +41,9 @@ export interface CreateSaleItemLine {
 
 export interface CreateSalePaymentLine {
   paymentMethod: PaymentMethod;
-  amount: number;
+  amountTendered: number;
+  amountApplied: number;
+  changeAmount: number;
   referenceNo?: string | null;
 }
 
@@ -64,7 +68,10 @@ export interface SaleInvoiceItem {
 
 export interface SaleInvoicePayment {
   paymentMethod: PaymentMethod;
-  amount: number;
+  amount?: number | null;
+  amountTendered?: number | null;
+  amountApplied?: number | null;
+  changeAmount?: number | null;
   referenceNo?: string | null;
 }
 
@@ -89,6 +96,8 @@ export interface SaleInvoice {
   totalAmount: number;
   paidAmount: number;
   balanceAmount: number;
+  tenderedAmount?: number | null;
+  changeAmount?: number | null;
   payments: SaleInvoicePayment[];
 }
 
@@ -130,6 +139,9 @@ export interface Payment {
   invoiceNo?: string | null;
   paymentMethod: PaymentMethod;
   amount?: number | null;
+  amountTendered?: number | null;
+  amountApplied?: number | null;
+  changeAmount?: number | null;
   paymentDate?: string | null;
   referenceNo?: string | null;
   status: PaymentStatus;

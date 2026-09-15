@@ -71,10 +71,11 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <Card className="p-4"><p className="text-xs text-muted-foreground">Date</p><p className="mt-1 text-sm font-semibold">{formatDateTime(sale.saleDate)}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Total</p><p className="num mt-1 text-sm font-semibold">{formatMoney(sale.totalAmount)}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Paid</p><p className="num mt-1 text-sm font-semibold text-success">{formatMoney(sale.paidAmount)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-muted-foreground">Tendered</p><p className="num mt-1 text-sm font-semibold">{formatMoney(sale.tenderedAmount ?? sale.paidAmount)}</p><p className="mt-0.5 text-xs text-muted-foreground">Change {formatMoney(sale.changeAmount)}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted-foreground">Balance</p><p className="num mt-1 text-sm font-semibold text-warning">{formatMoney(sale.balanceAmount)}</p></Card>
       </div>
 
@@ -116,13 +117,15 @@ export default function SaleDetailPage({ params }: { params: Promise<{ invoiceNo
           ) : (
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Method</TableHead><TableHead>Amount</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead></TableRow>
+                <TableRow><TableHead>Method</TableHead><TableHead>Tendered</TableHead><TableHead>Applied</TableHead><TableHead>Change</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead></TableRow>
               </TableHeader>
               <TableBody>
                 {payments.map((p) => (
                   <TableRow key={p.paymentId}>
                     <TableCell><Badge variant="outline">{p.paymentMethod}</Badge></TableCell>
-                    <TableCell className="num">{formatMoney(p.amount)}</TableCell>
+                    <TableCell className="num">{formatMoney(p.amountTendered ?? p.amount)}</TableCell>
+                    <TableCell className="num">{formatMoney(p.amountApplied ?? p.amount)}</TableCell>
+                    <TableCell className="num">{formatMoney(p.changeAmount)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{p.referenceNo || "—"}</TableCell>
                     <TableCell><StatusBadge status={p.status} /></TableCell>
                   </TableRow>

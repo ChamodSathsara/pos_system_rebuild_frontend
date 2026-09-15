@@ -286,13 +286,19 @@ export default function PosTerminalPage() {
       return;
     }
     let remainingPayment = total;
-    const recordedPayments = payments
-      .filter((payment) => Number(payment.amount) > 0 && remainingPayment > 0)
-      .map((payment) => {
-        const amount = Math.min(Number(payment.amount), remainingPayment);
-        remainingPayment -= amount;
-        return { paymentMethod: payment.paymentMethod, amount };
-      });
+    const recordedPayments = [];
+    for (const payment of payments) {
+      const amountTendered = Number(payment.amount);
+      if (amountTendered <= 0 || remainingPayment <= 0) continue;
+      const amountApplied = Math.min(amountTendered, remainingPayment);
+      const changeAmount = amountTendered - amountApplied;
+      if (changeAmount > 0.01 && payment.paymentMethod !== "Cash") {
+        toast.error("Only Cash payments can include change. Adjust the non-cash payment amount.");
+        return;
+      }
+      remainingPayment -= amountApplied;
+      recordedPayments.push({ paymentMethod: payment.paymentMethod, amountTendered, amountApplied, changeAmount });
+    }
     createSale.mutate(
       {
         invoiceNo: null,
@@ -308,7 +314,7 @@ export default function PosTerminalPage() {
           setPaymentDialogOpen(false);
           setLastInvoice(null);
           resetCart();
-          void printSaleInvoice(sale.invoiceNo, { tendered: paidTotal, change: Math.max(0, paidTotal - total) })
+            void printSaleInvoice(sale.invoiceNo)
             .then(() => {
               toast.success(`Invoice ${sale.invoiceNo} printed successfully.`);
               searchRef.current?.focus();

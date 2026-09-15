@@ -40,7 +40,7 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
     </tr>`).join("");
 
   const payments = invoice.payments.length > 1
-    ? invoice.payments.map((payment) => `<div class="row"><span>${escapeHtml(payment.paymentMethod).toUpperCase()}</span><span>${amount(payment.amount)}</span></div>`).join("")
+    ? invoice.payments.map((payment) => `<div class="row"><span>${escapeHtml(payment.paymentMethod).toUpperCase()}</span><span>${amount(payment.amountTendered ?? payment.amount)}</span></div>`).join("")
     : `<div class="row"><span>${escapeHtml(invoice.payments[0]?.paymentMethod || "Cash").toUpperCase()}</span><span>${amount(tendered)}</span></div>`;
 
   return `<!doctype html>
@@ -87,7 +87,8 @@ export function buildInvoiceReceiptHtml(invoice: SaleInvoice, tendered: number, 
   ${invoice.taxAmount > 0 ? `<div class="row"><span>TAX</span><span>${amount(invoice.taxAmount)}</span></div>` : ""}
   <div class="row total"><span>TOTAL</span><span>${amount(invoice.totalAmount)}</span></div>
   ${payments}
-  <div class="row"><span>BALANCE</span><span>${amount(change)}</span></div>
+  ${change > 0 ? `<div class="row"><span>CHANGE</span><span>${amount(change)}</span></div>` : ""}
+  <div class="row"><span>BALANCE DUE</span><span>${amount(invoice.balanceAmount)}</span></div>
   <div class="rule"></div>
   <div>Customer : ${escapeHtml(invoice.customerName || "Walk-in Customer")}</div>
   <div class="rule"></div>

@@ -22,7 +22,9 @@ export default function PaymentsPage() {
     () => [
       { accessorKey: "invoiceNo", header: "Invoice" },
       { accessorKey: "paymentMethod", header: "Method", cell: ({ row }) => <Badge variant="outline">{row.original.paymentMethod}</Badge> },
-      { accessorKey: "amount", header: "Amount", cell: ({ row }) => <span className="num">{formatMoney(row.original.amount)}</span> },
+      { accessorKey: "amountTendered", header: "Tendered", cell: ({ row }) => <span className="num">{formatMoney(row.original.amountTendered ?? row.original.amount)}</span> },
+      { accessorKey: "amountApplied", header: "Applied", cell: ({ row }) => <span className="num">{formatMoney(row.original.amountApplied ?? row.original.amount)}</span> },
+      { accessorKey: "changeAmount", header: "Change", cell: ({ row }) => <span className="num">{formatMoney(row.original.changeAmount)}</span> },
       { accessorKey: "paymentDate", header: "Date", cell: ({ row }) => formatDateTime(row.original.paymentDate) },
       { accessorKey: "referenceNo", header: "Reference", cell: ({ row }) => row.original.referenceNo || "—" },
       { accessorKey: "status", header: "Status", cell: ({ row }) => <StatusBadge status={row.original.status} /> },
